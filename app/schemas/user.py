@@ -15,3 +15,11 @@ class UserResponse(UserBase):
 
 class UserVerify(BaseModel):
     token: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str

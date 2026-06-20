@@ -61,3 +61,56 @@ def test_verify_email_invalid_token(client: TestClient):
     response = client.get("/api/v1/auth/verify-email?token=non_existent_token")
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid or expired verification token"
+
+def test_login_flow(client: TestClient, db: Session):
+    email = "login_test@example.com"
+    password = "secretpassword"
+    
+    # 1. Register user
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={"email": email, "password": password}
+    )
+    assert signup_response.status_code == 201
+    
+    # 2. Try to log in before verification (should fail)
+    login_fail_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": password}
+    )
+    assert login_fail_response.status_code == 400
+    assert "not verified" in login_fail_response.json()["detail"]
+    
+    # 3. Verify user
+    user = db.query(User).filter(User.email == email).first()
+    token = user.verification_token
+    verify_response = client.get(f"/api/v1/auth/verify-email?token={token}")
+    assert verify_response.status_code == 200
+    
+    # 4. Login with JSON body (should succeed)
+    login_success_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": password}
+    )
+    assert login_success_response.status_code == 200
+    data = login_success_response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+    
+    # 5. Login with OAuth2 form body (should succeed)
+    form_response = client.post(
+        "/api/v1/auth/login/access-token",
+        data={"username": email, "password": password}
+    )
+    assert form_response.status_code == 200
+    form_data = form_response.json()
+    assert "access_token" in form_data
+    assert form_data["token_type"] == "bearer"
+    
+    # 6. Login with incorrect password (should fail)
+    bad_pw_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": "wrongpassword"}
+    )
+    assert bad_pw_response.status_code == 400
+    assert "Incorrect email or password" in bad_pw_response.json()["detail"]

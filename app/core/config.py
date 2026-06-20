@@ -14,5 +14,13 @@ class Settings(BaseSettings):
         default="sqlite:///./sqlite.db",
         description="SQLAlchemy database connection URL"
     )
+    
+    # JWT security configuration
+    SECRET_KEY: str = Field(
+        default="SECRET_KEY_FOR_LOCAL_DEVELOPMENT_PLEASE_CHANGE_IN_PRODUCTION",
+        description="JWT signature secret key"
+    )
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 1 week
 
 settings = Settings()

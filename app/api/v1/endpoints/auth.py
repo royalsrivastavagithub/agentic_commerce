@@ -1,11 +1,17 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse
-from app.core.security import get_password_hash, generate_verification_token
+from app.schemas.user import UserCreate, UserResponse, Token, UserLogin
+from app.core.security import (
+    get_password_hash,
+    generate_verification_token,
+    verify_password,
+    create_access_token,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,3 +79,56 @@ def verify_email(
     db.commit()
     
     return {"message": "Email verified successfully", "email": user.email, "is_verified": user.is_verified}
+
+@router.post("/login", response_model=Token)
+def login(user_in: UserLogin, db: Session = Depends(get_db)):
+    """
+    Log in a user with JSON body (email and password), returning a JWT access token.
+    """
+    user = db.query(User).filter(User.email == user_in.email).first()
+    if not user or not verify_password(user_in.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect email or password"
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is inactive"
+        )
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is not verified. Please verify your email first."
+        )
+    
+    access_token = create_access_token(subject=user.id)
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/login/access-token", response_model=Token)
+def login_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    """
+    Log in a user using standard OAuth2 password flow form body, returning a JWT access token.
+    """
+    user = db.query(User).filter(User.email == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect email or password"
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is inactive"
+        )
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is not verified. Please verify your email first."
+        )
+    
+    access_token = create_access_token(subject=user.id)
+    return {"access_token": access_token, "token_type": "bearer"}
