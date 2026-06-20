@@ -56,11 +56,56 @@ def test_signup_duplicate_email(client: TestClient):
     assert response2.status_code == 400
     assert response2.json()["detail"] == "Email already registered"
 
+def test_signup_duplicate_email_case_insensitive(client: TestClient):
+    client.post(
+        "/api/v1/auth/signup",
+        json={"email": "CaseTest@Example.com", "password": "pw"}
+    )
+    resp = client.post(
+        "/api/v1/auth/signup",
+        json={"email": "casetest@example.com", "password": "pw"}
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Email already registered"
+
 def test_verify_email_invalid_token(client: TestClient):
     # Try verifying with an invalid token
     response = client.get("/api/v1/auth/verify-email?token=non_existent_token")
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid or expired verification token"
+
+def test_signup_invalid_email(client: TestClient):
+    resp = client.post(
+        "/api/v1/auth/signup",
+        json={"email": "not-an-email", "password": "password123"},
+    )
+    assert resp.status_code == 422
+
+
+def test_login_nonexistent_email(client: TestClient):
+    resp = client.post(
+        "/api/v1/auth/login",
+        json={"email": "nobody@example.com", "password": "anything"},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Invalid credentials"
+
+
+def test_login_access_token_wrong_password(client: TestClient, db: Session):
+    client.post(
+        "/api/v1/auth/signup",
+        json={"email": "formtest@example.com", "password": "correctpw"},
+    )
+    user = db.query(User).filter(User.email == "formtest@example.com").first()
+    client.get(f"/api/v1/auth/verify-email?token={user.verification_token}")
+
+    resp = client.post(
+        "/api/v1/auth/login/access-token",
+        data={"username": "formtest@example.com", "password": "wrongpw"},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Invalid credentials"
+
 
 def test_login_flow(client: TestClient, db: Session):
     email = "login_test@example.com"
