@@ -221,7 +221,7 @@ class TestTokenSecurity:
         db.refresh(user)
         wrong_key_token = jwt.encode(
             {"sub": str(user.id), "role": "admin", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
-            "this-is-a-different-secret-key",
+            "this-is-a-different-secret-key-its-32-bytes!",  # >=32 bytes to avoid InsecureKeyLengthWarning
             algorithm="HS256",
         )
         resp = client.post(
