@@ -79,7 +79,7 @@ def test_login_flow(client: TestClient, db: Session):
         json={"email": email, "password": password}
     )
     assert login_fail_response.status_code == 400
-    assert "not verified" in login_fail_response.json()["detail"]
+    assert login_fail_response.json()["detail"] == "Invalid credentials"
     
     # 3. Verify user
     user = db.query(User).filter(User.email == email).first()
@@ -113,4 +113,4 @@ def test_login_flow(client: TestClient, db: Session):
         json={"email": email, "password": "wrongpassword"}
     )
     assert bad_pw_response.status_code == 400
-    assert "Incorrect email or password" in bad_pw_response.json()["detail"]
+    assert bad_pw_response.json()["detail"] == "Invalid credentials"

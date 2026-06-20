@@ -10,8 +10,12 @@ router = APIRouter(tags=["products"])
 categories_router = APIRouter(tags=["categories"])
 
 
-@router.get("/products", response_model=ProductsResponse)
-async def get_products(
+@router.get(
+    "/products",
+    response_model=ProductsResponse,
+    response_model_by_alias=True,
+)
+def get_products(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1),
     db: Session = Depends(get_db),
@@ -21,8 +25,12 @@ async def get_products(
     return ProductsResponse(products=products, total=total, skip=skip, limit=limit)
 
 
-@router.get("/products/search", response_model=ProductsResponse)
-async def search_products(
+@router.get(
+    "/products/search",
+    response_model=ProductsResponse,
+    response_model_by_alias=True,
+)
+def search_products(
     q: str = Query(..., min_length=1),
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1),
@@ -40,8 +48,12 @@ async def search_products(
     return ProductsResponse(products=products, total=total, skip=skip, limit=limit)
 
 
-@router.get("/products/{product_id}", response_model=ProductSchema)
-async def get_product(product_id: int, db: Session = Depends(get_db)):
+@router.get(
+    "/products/{product_id}",
+    response_model=ProductSchema,
+    response_model_by_alias=True,
+)
+def get_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(
@@ -51,8 +63,13 @@ async def get_product(product_id: int, db: Session = Depends(get_db)):
     return product
 
 
-@router.post("/products", response_model=ProductSchema, status_code=status.HTTP_201_CREATED)
-async def create_product(product_in: ProductCreate, db: Session = Depends(get_db)):
+@router.post(
+    "/products",
+    response_model=ProductSchema,
+    status_code=status.HTTP_201_CREATED,
+    response_model_by_alias=True,
+)
+def create_product(product_in: ProductCreate, db: Session = Depends(get_db)):
     data = product_in.model_dump(exclude_none=True)
     try:
         product = Product(**data)
@@ -68,8 +85,12 @@ async def create_product(product_in: ProductCreate, db: Session = Depends(get_db
     return product
 
 
-@router.put("/products/{product_id}", response_model=ProductSchema)
-async def update_product(
+@router.put(
+    "/products/{product_id}",
+    response_model=ProductSchema,
+    response_model_by_alias=True,
+)
+def update_product(
     product_id: int, product_in: ProductUpdate, db: Session = Depends(get_db)
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
@@ -81,13 +102,20 @@ async def update_product(
     update_data = product_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(product, field, value)
-    db.commit()
-    db.refresh(product)
+    try:
+        db.commit()
+        db.refresh(product)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Update violates a unique constraint (id or sku)",
+        )
     return product
 
 
 @router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_product(product_id: int, db: Session = Depends(get_db)):
+def delete_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(
@@ -98,16 +126,23 @@ async def delete_product(product_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
-@categories_router.get("/categories", response_model=list[str])
-async def get_categories(db: Session = Depends(get_db)):
+@categories_router.get(
+    "/categories",
+    response_model=list[str],
+)
+def get_categories(db: Session = Depends(get_db)):
     results = (
         db.query(Product.category).distinct().order_by(Product.category).all()
     )
     return [r[0] for r in results]
 
 
-@categories_router.get("/categories/{category_name}", response_model=ProductsResponse)
-async def get_products_by_category(
+@categories_router.get(
+    "/categories/{category_name}",
+    response_model=ProductsResponse,
+    response_model_by_alias=True,
+)
+def get_products_by_category(
     category_name: str,
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1),
