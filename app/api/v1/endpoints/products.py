@@ -9,7 +9,6 @@ from app.schemas.product import ProductSchema, ProductCreate, ProductUpdate, Pro
 from app.api.deps import get_current_admin_user
 
 router = APIRouter(tags=["products"])
-categories_router = APIRouter(tags=["categories"])
 
 
 @router.get(
@@ -139,39 +138,4 @@ def delete_product(
     db.commit()
 
 
-@categories_router.get(
-    "/categories",
-    response_model=list[str],
-)
-def get_categories(db: Session = Depends(get_db)):
-    results = (
-        db.query(Product.category).distinct().order_by(Product.category).all()
-    )
-    return [r[0] for r in results]
 
-
-@categories_router.get(
-    "/categories/{category_name}",
-    response_model=ProductsResponse,
-    response_model_by_alias=True,
-)
-def get_products_by_category(
-    category_name: str,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1),
-    db: Session = Depends(get_db),
-):
-    total = db.query(Product).filter(Product.category == category_name).count()
-    if total == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Category '{category_name}' not found",
-        )
-    products = (
-        db.query(Product)
-        .filter(Product.category == category_name)
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-    return ProductsResponse(products=products, total=total, skip=skip, limit=limit)

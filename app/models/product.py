@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, JSON
+from sqlalchemy import Column, Integer, String, Float, JSON, ForeignKey
+from sqlalchemy.orm import relationship
 from app.db.session import Base
 
 
@@ -8,7 +9,7 @@ class Product(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    category = Column(String, nullable=False, index=True)
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=False, index=True)
     price = Column(Float, nullable=False)
     discount_percentage = Column("discountPercentage", Float, nullable=False)
     rating = Column(Float, nullable=False)
@@ -27,3 +28,9 @@ class Product(Base):
     meta = Column(JSON, nullable=False)
     images = Column(JSON, nullable=False)
     thumbnail = Column(String, nullable=False)
+
+    category_rel = relationship("Category", lazy="joined")
+
+    @property
+    def category(self):
+        return self.category_rel.name if self.category_rel else ""

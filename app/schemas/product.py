@@ -29,6 +29,7 @@ class ProductSchema(BaseModel):
     id: int
     title: str
     description: str
+    category_id: int
     category: str
     price: float
     discount_percentage: float = Field(alias="discountPercentage")
@@ -56,7 +57,7 @@ class ProductCreate(BaseModel):
     id: Optional[int] = None
     title: str
     description: str
-    category: str
+    category_id: int
     price: float
     discount_percentage: float = Field(alias="discountPercentage")
     rating: float
@@ -82,7 +83,7 @@ class ProductUpdate(BaseModel):
 
     title: Optional[str] = None
     description: Optional[str] = None
-    category: Optional[str] = None
+    category_id: Optional[int] = None
     price: Optional[float] = None
     discount_percentage: Optional[float] = Field(default=None, alias="discountPercentage")
     rating: Optional[float] = None

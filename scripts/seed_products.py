@@ -53,6 +53,28 @@ def load_products() -> list[dict]:
     return data["products"]
 
 
+def _seed_categories(client, headers, products) -> dict[str, int]:
+    """Create all unique categories and return a name->id mapping."""
+    names = sorted({p["category"] for p in products})
+    mapping = {}
+    for name in names:
+        resp = client.post(f"{API_PREFIX}/categories", json={"name": name}, headers=headers)
+        if resp.status_code == 201:
+            mapping[name] = resp.json()["id"]
+            print(f"  Created category '{name}' -> id {resp.json()['id']}")
+        elif resp.status_code == 409:
+            # already exists — fetch it
+            list_resp = client.get(f"{API_PREFIX}/categories")
+            for cat in list_resp.json():
+                if cat["name"] == name:
+                    mapping[name] = cat["id"]
+                    break
+        else:
+            print(f"  Error creating category '{name}': {resp.status_code} {resp.text[:120]}")
+    print(f"  Total categories: {len(mapping)}")
+    return mapping
+
+
 def seed(force: bool = False) -> None:
     client = TestClient(app)
     headers = _get_admin_headers()
@@ -71,11 +93,28 @@ def seed(force: bool = False) -> None:
         else:
             print("Could not fetch existing products; proceeding anyway")
 
+        print("Fetching existing categories to clear…")
+        cat_resp = client.get(f"{API_PREFIX}/categories")
+        if cat_resp.status_code == 200:
+            for cat in cat_resp.json():
+                client.delete(f"{API_PREFIX}/categories/{cat['id']}", headers=headers)
+            print(f"Deleted {len(cat_resp.json())} existing categories")
+
+    print("Creating categories…")
+    cat_mapping = _seed_categories(client, headers, products)
+
     created = 0
     skipped = 0
     errors = 0
 
     for p in products:
+        cat_name = p.pop("category", None)
+        cat_id = cat_mapping.get(cat_name)
+        if cat_id is None:
+            errors += 1
+            print(f"  Error: unknown category '{cat_name}' for product {p.get('id')}")
+            continue
+        p["category_id"] = cat_id
         resp = client.post(f"{API_PREFIX}/products", json=p, headers=headers)
         if resp.status_code == 201:
             created += 1
