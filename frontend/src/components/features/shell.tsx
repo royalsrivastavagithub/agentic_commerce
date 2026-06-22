@@ -15,15 +15,17 @@ import { useAuthStore } from "@/stores/auth-store"
 import { useCartStore } from "@/stores/cart-store"
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
-import type { Cart, Category } from "@/types/api"
-import { useState } from "react"
+import type { Cart, Product, ProductListResponse } from "@/types/api"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user, logout } = useAuthStore()
   const { isCartOpen, openCart, closeCart } = useCartStore()
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchCategory, setSearchCategory] = useState("all")
+  const [debouncedQuery, setDebouncedQuery] = useState("")
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
   const { data: cart } = useQuery({
@@ -32,21 +34,34 @@ export function Shell({ children }: { children: React.ReactNode }) {
     enabled: isAuthenticated,
   })
 
-  const { data: categories } = useQuery({
-    queryKey: ["categories"],
-    queryFn: () => api.get<Category[]>("/categories"),
-  })
-
   const cartCount = cart?.items?.reduce((sum, i) => sum + i.quantity, 0) ?? 0
   const cartTotal = cart?.total ?? 0
+
+  const { data: suggestions } = useQuery({
+    queryKey: ["search-suggestions", debouncedQuery],
+    queryFn: () => api.get<ProductListResponse>(`/products/search?q=${encodeURIComponent(debouncedQuery)}&skip=0&limit=5`),
+    enabled: debouncedQuery.length >= 2,
+  })
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSuggestionsOpen(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     const q = searchQuery.trim()
     if (!q) return
-    let path = `/products?search=${encodeURIComponent(q)}`
-    if (searchCategory !== "all") path += `&category=${encodeURIComponent(searchCategory)}`
-    router.push(path)
+    setSuggestionsOpen(false)
+    router.push(`/products?search=${encodeURIComponent(q)}`)
   }
 
   const handleLogout = () => {
@@ -54,47 +69,84 @@ export function Shell({ children }: { children: React.ReactNode }) {
     router.push("/products")
   }
 
+  const handleCartClick = () => {
+    if (!isAuthenticated) {
+      router.push("/auth/login")
+      return
+    }
+    openCart()
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Top bar — Amazon dark navy */}
       <header className="sticky top-0 z-50 bg-amazon-nav">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-3 sm:gap-4 sm:px-6">
-          {/* Logo */}
           <Link
-            href="/products"
+            href="/"
             className="flex shrink-0 items-center text-lg font-bold tracking-tight text-white hover:opacity-80 sm:text-xl"
           >
             Agentic Commerce
           </Link>
 
-          {/* Search bar — Amazon-style with category dropdown + search button */}
-          <div className="hidden flex-1 sm:flex sm:max-w-2xl lg:max-w-3xl">
-            <form onSubmit={handleSearch} className="flex w-full">
-              <select
-                value={searchCategory}
-                onChange={(e) => setSearchCategory(e.target.value)}
-                className="w-28 rounded-l-md border-r border-gray-300 bg-gray-100 px-2 text-xs text-gray-700 outline-none"
-              >
-                <option value="all">All</option>
-                {categories?.map((c) => (
-                  <option key={c.id} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+          {/* Search bar — no category dropdown */}
+          <div className="hidden flex-1 sm:flex sm:max-w-2xl lg:max-w-3xl" ref={searchRef}>
+            <form onSubmit={handleSearch} className="relative w-full">
               <input
                 type="text"
                 placeholder="Search products..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 px-3 py-1.5 text-sm text-black outline-none"
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setSuggestionsOpen(true)
+                }}
+                onFocus={() => searchQuery.length >= 2 && setSuggestionsOpen(true)}
+                className="w-full rounded-l-md rounded-r-none bg-white px-3 py-1.5 text-sm text-gray-900 outline-none placeholder:text-gray-400"
               />
               <button
                 type="submit"
-                className="flex items-center justify-center rounded-r-md bg-amazon-accent px-3 hover:brightness-95"
+                className="absolute right-0 top-0 flex h-full items-center justify-center rounded-r-md bg-amazon-accent px-3 hover:brightness-95"
               >
                 <Search className="h-5 w-5 text-amazon-nav" />
               </button>
+
+              {/* Search suggestions dropdown */}
+              {suggestionsOpen && debouncedQuery.length >= 2 && suggestions && (
+                <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border bg-white shadow-lg">
+                  {suggestions.products.length > 0 ? (
+                    <div>
+                      {suggestions.products.slice(0, 5).map((product) => (
+                        <Link
+                          key={product.id}
+                          href={`/products/${product.id}`}
+                          onClick={() => { setSuggestionsOpen(false); setSearchQuery("") }}
+                          className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50"
+                        >
+                          <img
+                            src={product.thumbnail || "/placeholder.svg"}
+                            alt={product.title}
+                            className="h-10 w-10 flex-shrink-0 rounded object-contain"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-gray-900">{product.title}</p>
+                            <p className="text-xs text-muted-foreground">₹{product.price.toFixed(2)}</p>
+                          </div>
+                        </Link>
+                      ))}
+                      <Link
+                        href={`/products?search=${encodeURIComponent(debouncedQuery)}`}
+                        onClick={() => { setSuggestionsOpen(false); setSearchQuery("") }}
+                        className="flex items-center justify-center border-t px-3 py-2 text-sm font-medium text-amazon-link hover:bg-gray-50"
+                      >
+                        See all results for &quot;{debouncedQuery}&quot;
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                      No products found for &quot;{debouncedQuery}&quot;
+                    </div>
+                  )}
+                </div>
+              )}
             </form>
           </div>
 
@@ -143,23 +195,31 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </Link>
             )}
 
-            <Link
-              href="/orders"
-              className="hidden flex-col px-1 py-0.5 text-white hover:opacity-80 sm:flex"
+            {/* Returns & Orders — guarded */}
+            <button
+              type="button"
+              onClick={() => router.push(isAuthenticated ? "/orders" : "/auth/login")}
+              className="hidden flex-col px-1 py-0.5 text-left text-white hover:opacity-80 sm:flex"
             >
               <span className="text-[10px] leading-none text-gray-300 sm:text-xs">Returns</span>
               <span className="text-xs font-bold leading-tight sm:text-sm">& Orders</span>
-            </Link>
+            </button>
 
-            {/* Cart trigger */}
-            <Sheet open={isCartOpen} onOpenChange={(open) => (open ? openCart() : closeCart())}>
+            {/* Cart trigger — guarded */}
+            <Sheet open={isAuthenticated ? isCartOpen : false} onOpenChange={(open) => open && handleCartClick()}>
               <SheetTrigger
+                onClick={(e) => {
+                  if (!isAuthenticated) {
+                    e.preventDefault()
+                    router.push("/auth/login")
+                  }
+                }}
                 className="flex items-end gap-1 px-1 py-0.5 text-white hover:opacity-80"
                 aria-label="Cart"
               >
                 <div className="relative">
                   <ShoppingCart className="h-6 w-6 sm:h-7 sm:w-7" />
-                  {cartCount > 0 && (
+                  {cartCount > 0 && isAuthenticated && (
                     <Badge className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amazon-accent p-0 text-[10px] font-bold text-amazon-nav sm:h-5 sm:w-5 sm:text-xs">
                       {cartCount}
                     </Badge>
@@ -206,46 +266,20 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     <span>Total</span>
                     <span>₹{cartTotal.toFixed(2)}</span>
                   </div>
-                  <Link href="/cart" onClick={closeCart}>
-                    <button
-                      type="button"
-                      className="w-full rounded-lg bg-amazon-cart px-4 py-2 text-sm font-semibold text-black hover:brightness-95 disabled:opacity-50"
-                      disabled={!cart?.items?.length}
-                    >
-                      View Cart
-                    </button>
-                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => { closeCart(); router.push("/cart") }}
+                    className="w-full rounded-lg bg-amazon-cart px-4 py-2 text-sm font-semibold text-black hover:brightness-95 disabled:opacity-50"
+                    disabled={!cart?.items?.length}
+                  >
+                    View Cart
+                  </button>
                 </div>
               </SheetContent>
             </Sheet>
           </nav>
         </div>
 
-        {/* Secondary bar — Amazon medium dark */}
-        <div className="hidden border-t border-white/10 bg-amazon-nav2 sm:block">
-          <div className="mx-auto flex h-10 max-w-7xl items-center gap-4 px-6 text-sm text-white">
-            <button
-              type="button"
-              className="flex items-center gap-1 font-bold hover:opacity-80"
-              onClick={() => router.push("/products")}
-            >
-              <Menu className="h-5 w-5" />
-              All
-            </button>
-            <Link href="/products?search=today%27s+deals" className="hover:opacity-80">
-              Today&apos;s Deals
-            </Link>
-            <Link href="/products" className="hover:opacity-80">
-              Customer Service
-            </Link>
-            <Link href="/products" className="hover:opacity-80">
-              Gift Cards
-            </Link>
-            <Link href="/products" className="hover:opacity-80">
-              Sell
-            </Link>
-          </div>
-        </div>
       </header>
 
       <main className="flex-1">{children}</main>
