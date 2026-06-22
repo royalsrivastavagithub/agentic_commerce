@@ -1,4 +1,8 @@
-from sqlalchemy import Boolean, Column, Integer, String
+from datetime import date
+
+from sqlalchemy import Boolean, Column, Date, Integer, String
+from sqlalchemy.orm import relationship
+
 from app.db.session import Base
 
 class User(Base):
@@ -11,3 +15,10 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     verification_token = Column(String, nullable=True)
     role = Column(String, default="user", nullable=False)
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    date_of_birth = Column(Date, nullable=True)
+    gender = Column(String, nullable=True)
+
+    addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")

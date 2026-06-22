@@ -22,6 +22,9 @@ def test_signup_flow(client: TestClient, db: Session):
     assert data["is_active"] is True
     assert data["is_verified"] is False
     assert "id" in data
+    assert data["first_name"] is None
+    assert data["last_name"] is None
+    assert data["phone"] is None
     
     # 2. Check the user in the database
     user_db = db.query(User).filter(User.email == signup_payload["email"]).first()
@@ -44,6 +47,33 @@ def test_signup_flow(client: TestClient, db: Session):
     db.refresh(user_db)
     assert user_db.is_verified is True
     assert user_db.verification_token is None
+
+def test_signup_with_profile_fields(client: TestClient, db: Session):
+    payload = {
+        "email": "profile@example.com",
+        "password": "password123",
+        "first_name": "John",
+        "last_name": "Doe",
+        "phone": "+91-9876543210",
+        "date_of_birth": "1995-06-15",
+        "gender": "male",
+    }
+    resp = client.post("/api/v1/auth/signup", json=payload)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["first_name"] == "John"
+    assert data["last_name"] == "Doe"
+    assert data["phone"] == "+91-9876543210"
+    assert data["date_of_birth"] == "1995-06-15"
+    assert data["gender"] == "male"
+
+    user_db = db.query(User).filter(User.email == payload["email"]).first()
+    assert user_db.first_name == "John"
+    assert user_db.last_name == "Doe"
+    assert user_db.phone == "+91-9876543210"
+    assert user_db.date_of_birth.isoformat() == "1995-06-15"
+    assert user_db.gender == "male"
+
 
 def test_signup_duplicate_email(client: TestClient):
     signup_payload = {
@@ -372,3 +402,84 @@ class TestAuthEdgeCases:
         )
         assert resp.status_code == 201
         assert resp.json()["role"] == "user"
+
+
+class TestUserProfile:
+    def test_get_profile_unauthenticated_returns_401(self, client: TestClient):
+        resp = client.get("/api/v1/auth/users/me")
+        assert resp.status_code == 401
+
+    def test_get_profile(self, client: TestClient, user_token_headers):
+        resp = client.get("/api/v1/auth/users/me", headers=user_token_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["email"] == "user@test.com"
+        assert "id" in data
+        assert data["role"] == "user"
+
+    def test_update_profile(self, client: TestClient, user_token_headers):
+        resp = client.put(
+            "/api/v1/auth/users/me",
+            json={"first_name": "Jane", "phone": "+91-1234567890"},
+            headers=user_token_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["first_name"] == "Jane"
+        assert data["phone"] == "+91-1234567890"
+
+    def test_update_profile_empty_body_returns_200(self, client: TestClient, user_token_headers):
+        resp = client.put(
+            "/api/v1/auth/users/me",
+            json={},
+            headers=user_token_headers,
+        )
+        assert resp.status_code == 200
+
+    def test_change_password(self, client: TestClient, db: Session):
+        user = User(
+            email="changepw@test.com",
+            hashed_password="x",
+            is_active=True,
+            is_verified=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        # Override hashed_password with a real hash so verify_password works
+        from app.core.security import get_password_hash
+        user.hashed_password = get_password_hash("oldpass123")
+        db.commit()
+
+        token = create_access_token(subject=user.id, role=user.role)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        resp = client.put(
+            "/api/v1/auth/users/me/password",
+            json={"current_password": "oldpass123", "new_password": "newpass456"},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+
+        # Verify old password no longer works
+        login_resp = client.post(
+            "/api/v1/auth/login",
+            json={"email": "changepw@test.com", "password": "oldpass123"},
+        )
+        assert login_resp.status_code == 400
+
+        # Verify new password works
+        login_resp2 = client.post(
+            "/api/v1/auth/login",
+            json={"email": "changepw@test.com", "password": "newpass456"},
+        )
+        assert login_resp2.status_code == 200
+
+    def test_change_password_wrong_current(self, client: TestClient, user_token_headers):
+        resp = client.put(
+            "/api/v1/auth/users/me/password",
+            json={"current_password": "wrongpass", "new_password": "newpass456"},
+            headers=user_token_headers,
+        )
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Current password is incorrect"

@@ -6,13 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse, Token, UserLogin
+from app.schemas.user import UserCreate, UserResponse, UserUpdate, PasswordChange, Token, UserLogin
 from app.core.security import (
     get_password_hash,
     generate_verification_token,
     verify_password,
     create_access_token,
 )
+from app.api.deps import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,11 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
         verification_token=verification_token,
         is_verified=False,
         is_active=True,
+        first_name=user_in.first_name,
+        last_name=user_in.last_name,
+        phone=user_in.phone,
+        date_of_birth=user_in.date_of_birth,
+        gender=user_in.gender,
     )
 
     db.add(new_user)
@@ -122,3 +128,41 @@ def login_access_token(
 
     access_token = create_access_token(subject=user.id, role=user.role)
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.get("/users/me", response_model=UserResponse)
+def read_current_user(
+    current_user: User = Depends(get_current_user),
+):
+    return current_user
+
+
+@router.put("/users/me", response_model=UserResponse)
+def update_current_user(
+    user_in: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    update_data = user_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(current_user, field, value)
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.put("/users/me/password", response_model=UserResponse)
+def change_password(
+    pw_in: PasswordChange,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not verify_password(pw_in.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    current_user.hashed_password = get_password_hash(pw_in.new_password)
+    db.commit()
+    db.refresh(current_user)
+    return current_user
