@@ -51,11 +51,15 @@ def get_products(
 )
 def search_products(
     q: str = Query(..., min_length=1),
+    category_id: int | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1),
     db: Session = Depends(get_db),
 ):
-    all_products = db.query(Product).all()
+    base_query = db.query(Product)
+    if category_id is not None:
+        base_query = base_query.filter(Product.category_id == category_id)
+    all_products = base_query.all()
     scored = [(p, _score_product(q, p)) for p in all_products]
     matched = [(p, s) for p, s in scored if s >= 40]
     matched.sort(key=lambda x: -x[1])

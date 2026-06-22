@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ShoppingCart, Search, Menu, LogOut, Package, Heart } from "lucide-react"
+import { ShoppingCart, Search, Menu, LogOut, Package, Heart, Moon, Sun } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -15,18 +15,21 @@ import { useAuthStore } from "@/stores/auth-store"
 import { useCartStore } from "@/stores/cart-store"
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
-import type { Cart, Product, ProductListResponse } from "@/types/api"
+import type { Cart, Product, ProductListResponse, Category } from "@/types/api"
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { useTheme } from "next-themes"
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user, logout } = useAuthStore()
   const { isCartOpen, openCart, closeCart } = useCartStore()
   const [searchQuery, setSearchQuery] = useState("")
+  const [searchCategory, setSearchCategory] = useState("all")
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
 
   const { data: cart } = useQuery({
     queryKey: ["cart"],
@@ -34,12 +37,24 @@ export function Shell({ children }: { children: React.ReactNode }) {
     enabled: isAuthenticated,
   })
 
+  const { data: categories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => api.get<Category[]>("/categories"),
+  })
+
   const cartCount = cart?.items?.reduce((sum, i) => sum + i.quantity, 0) ?? 0
   const cartTotal = cart?.total ?? 0
 
   const { data: suggestions } = useQuery({
-    queryKey: ["search-suggestions", debouncedQuery],
-    queryFn: () => api.get<ProductListResponse>(`/products/search?q=${encodeURIComponent(debouncedQuery)}&skip=0&limit=5`),
+    queryKey: ["search-suggestions", debouncedQuery, searchCategory],
+    queryFn: () => {
+      let url = `/products/search?q=${encodeURIComponent(debouncedQuery)}&skip=0&limit=5`
+      if (searchCategory !== "all") {
+        const cat = categories?.find((c) => c.name === searchCategory)
+        if (cat) url += `&category_id=${cat.id}`
+      }
+      return api.get<ProductListResponse>(url)
+    },
     enabled: debouncedQuery.length >= 2,
   })
 
@@ -61,7 +76,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
     const q = searchQuery.trim()
     if (!q) return
     setSuggestionsOpen(false)
-    router.push(`/products?search=${encodeURIComponent(q)}`)
+    let path = `/products?search=${encodeURIComponent(q)}`
+    if (searchCategory !== "all") path += `&category=${encodeURIComponent(searchCategory)}`
+    router.push(path)
   }
 
   const handleLogout = () => {
@@ -88,30 +105,43 @@ export function Shell({ children }: { children: React.ReactNode }) {
             Agentic Commerce
           </Link>
 
-          {/* Search bar — no category dropdown */}
-          <div className="hidden flex-1 sm:flex sm:max-w-2xl lg:max-w-3xl" ref={searchRef}>
-            <form onSubmit={handleSearch} className="relative w-full">
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value)
-                  setSuggestionsOpen(true)
-                }}
-                onFocus={() => searchQuery.length >= 2 && setSuggestionsOpen(true)}
-                className="w-full rounded-l-md rounded-r-none bg-white px-3 py-1.5 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-              />
-              <button
-                type="submit"
-                className="absolute right-0 top-0 flex h-full items-center justify-center rounded-r-md bg-amazon-accent px-3 hover:brightness-95"
+          {/* Search bar with category dropdown */}
+          <div className="hidden flex-1 sm:flex sm:max-w-xl lg:max-w-4xl" ref={searchRef}>
+            <form onSubmit={handleSearch} className="flex w-full">
+              <select
+                value={searchCategory}
+                onChange={(e) => setSearchCategory(e.target.value)}
+                className="w-28 rounded-l-md border-r border-gray-300 bg-gray-100 px-2 text-xs text-gray-700 outline-none"
               >
-                <Search className="h-5 w-5 text-amazon-nav" />
-              </button>
+                <option value="all">All</option>
+                {categories?.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    setSuggestionsOpen(true)
+                  }}
+                  onFocus={() => searchQuery.length >= 2 && setSuggestionsOpen(true)}
+                  className="w-full bg-white px-3 py-1.5 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                />
+                <button
+                  type="submit"
+                  className="absolute right-0 top-0 flex h-full items-center justify-center bg-amazon-accent px-3 hover:brightness-95"
+                >
+                  <Search className="h-5 w-5 text-amazon-nav" />
+                </button>
 
-              {/* Search suggestions dropdown */}
-              {suggestionsOpen && debouncedQuery.length >= 2 && suggestions && (
-                <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border bg-white shadow-lg">
+                {/* Search suggestions dropdown */}
+                {suggestionsOpen && debouncedQuery.length >= 2 && suggestions && (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border bg-white shadow-lg">
                   {suggestions.products.length > 0 ? (
                     <div>
                       {suggestions.products.slice(0, 5).map((product) => (
@@ -133,7 +163,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                         </Link>
                       ))}
                       <Link
-                        href={`/products?search=${encodeURIComponent(debouncedQuery)}`}
+                        href={`/products?search=${encodeURIComponent(debouncedQuery)}${searchCategory !== "all" ? `&category=${encodeURIComponent(searchCategory)}` : ""}`}
                         onClick={() => { setSuggestionsOpen(false); setSearchQuery("") }}
                         className="flex items-center justify-center border-t px-3 py-2 text-sm font-medium text-amazon-link hover:bg-gray-50"
                       >
@@ -147,6 +177,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   )}
                 </div>
               )}
+            </div>
             </form>
           </div>
 
@@ -203,6 +234,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
             >
               <span className="text-[10px] leading-none text-gray-300 sm:text-xs">Returns</span>
               <span className="text-xs font-bold leading-tight sm:text-sm">& Orders</span>
+            </button>
+
+            {/* Theme toggle */}
+            <button
+              type="button"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="relative flex items-center px-2 py-1.5 text-white hover:opacity-80"
+              aria-label="Toggle theme"
+            >
+              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </button>
 
             {/* Cart trigger — guarded */}

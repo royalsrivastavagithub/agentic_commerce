@@ -51,14 +51,14 @@ export default function ProductDetailContent() {
       <Shell>
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="animate-pulse">
-            <div className="mb-4 h-4 w-48 rounded bg-gray-200" />
+            <div className="mb-4 h-4 w-48 rounded bg-gray-200 dark:bg-muted" />
             <div className="grid gap-8 lg:grid-cols-2">
-              <div className="aspect-square rounded-lg bg-gray-200" />
+              <div className="aspect-square rounded-lg bg-gray-200 dark:bg-muted" />
               <div className="space-y-4">
-                <div className="h-8 w-3/4 rounded bg-gray-200" />
-                <div className="h-4 w-1/3 rounded bg-gray-200" />
-                <div className="h-6 w-1/4 rounded bg-gray-200" />
-                <div className="h-20 rounded bg-gray-200" />
+                <div className="h-8 w-3/4 rounded bg-gray-200 dark:bg-muted" />
+                <div className="h-4 w-1/3 rounded bg-gray-200 dark:bg-muted" />
+                <div className="h-6 w-1/4 rounded bg-gray-200 dark:bg-muted" />
+                <div className="h-20 rounded bg-gray-200 dark:bg-muted" />
               </div>
             </div>
           </div>
@@ -71,7 +71,7 @@ export default function ProductDetailContent() {
     return (
       <Shell>
         <div className="flex flex-col items-center justify-center py-20">
-          <p className="text-lg text-gray-600">Product not found</p>
+          <p className="text-lg text-muted-foreground">Product not found</p>
           <Link href="/products" className="mt-2 text-sm text-amazon-link hover:underline">
             Back to results
           </Link>
@@ -102,13 +102,13 @@ export default function ProductDetailContent() {
             </>
           )}
           <ChevronRight className="mx-1 inline h-3 w-3" />
-          <span className="text-gray-500">{product.title}</span>
+          <span className="text-muted-foreground">{product.title}</span>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-2">
           {/* Left: Image gallery */}
           <div>
-            <div className="mb-3 flex items-center justify-center overflow-hidden rounded-lg border bg-white p-4">
+            <div className="mb-3 flex items-center justify-center overflow-hidden rounded-lg border bg-white p-4 dark:bg-card">
               <img
                 src={product.images?.[selectedImage] || product.thumbnail || "/placeholder.svg"}
                 alt={product.title}
@@ -121,8 +121,8 @@ export default function ProductDetailContent() {
                   <button
                     key={i}
                     onClick={() => setSelectedImage(i)}
-                    className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border-2 bg-white p-1 ${
-                      selectedImage === i ? "border-amazon-link" : "border-gray-200"
+                    className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border-2 bg-white p-1 dark:bg-card ${
+                      selectedImage === i ? "border-amazon-link" : "border-gray-200 dark:border-border"
                     }`}
                   >
                     <img src={img || "/placeholder.svg"} alt="" className="h-full w-full object-contain" />
@@ -134,7 +134,7 @@ export default function ProductDetailContent() {
 
           {/* Right: Product info */}
           <div>
-            <h1 className="text-xl font-medium leading-snug text-gray-900 lg:text-2xl">{product.title}</h1>
+            <h1 className="text-xl font-medium leading-snug text-foreground lg:text-2xl">{product.title}</h1>
 
             {/* Rating */}
             <div className="mt-2 flex items-center gap-2">
@@ -165,7 +165,7 @@ export default function ProductDetailContent() {
                 </div>
               )}
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-medium text-gray-900">
+                <span className="text-2xl font-medium text-price">
                   ₹{discounted.toFixed(2)}
                 </span>
                 {product.discount_percentage > 0 && (
@@ -175,7 +175,7 @@ export default function ProductDetailContent() {
                 )}
               </div>
               {product.discount_percentage > 0 && (
-                <p className="text-sm text-green-700">You save ₹{(product.price - discounted).toFixed(2)}</p>
+                <p className="text-sm text-green-700 dark:text-green-500">You save ₹{(product.price - discounted).toFixed(2)}</p>
               )}
             </div>
 
@@ -184,7 +184,7 @@ export default function ProductDetailContent() {
             {/* Stock status */}
             <p className="text-sm">
               {product.stock > 0 ? (
-                <span className="font-medium text-green-700">In Stock</span>
+                <span className="font-medium text-green-700 dark:text-green-500">In Stock</span>
               ) : (
                 <span className="font-medium text-destructive">Out of Stock</span>
               )}
@@ -194,11 +194,11 @@ export default function ProductDetailContent() {
               <div className="mt-3 space-y-3">
                 {/* Quantity selector — Amazon-style dropdown */}
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700">Quantity:</label>
+                  <label className="text-sm font-medium text-foreground">Quantity:</label>
                   <select
                     value={quantity}
                     onChange={(e) => setQuantity(Number(e.target.value))}
-                    className="rounded-lg border border-gray-300 px-2 py-1 text-sm outline-none focus:border-amazon-link"
+                    className="rounded-lg border border-gray-300 px-2 py-1 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card"
                   >
                     {Array.from({ length: Math.min(product.stock, 10) }, (_, i) => (
                       <option key={i + 1} value={i + 1}>
@@ -246,7 +246,7 @@ export default function ProductDetailContent() {
             {/* Feature bullets */}
             <div className="my-4 space-y-2">
               <h3 className="text-base font-medium">About this item</h3>
-              <ul className="list-inside list-disc space-y-1 text-sm text-gray-700">
+              <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
                 <li>{product.description || "No description available."}</li>
                 {product.brand && <li>Brand: {product.brand}</li>}
                 <li>Material: Premium quality</li>
@@ -276,9 +276,9 @@ export default function ProductDetailContent() {
             ]
               .filter((r) => r.value)
               .map((row) => (
-                <div key={row.label} className="flex gap-2 rounded-md bg-gray-50 px-3 py-2 text-sm">
-                  <span className="w-32 shrink-0 font-medium text-gray-600">{row.label}</span>
-                  <span className="text-gray-900">{row.value}</span>
+                <div key={row.label} className="flex gap-2 rounded-md bg-muted px-3 py-2 text-sm">
+                  <span className="w-32 shrink-0 font-medium text-muted-foreground">{row.label}</span>
+                  <span className="text-foreground">{row.value}</span>
                 </div>
               ))}
           </div>
@@ -314,7 +314,7 @@ function ReviewSection({ productId }: { productId: number }) {
         <div key={review.id} className="rounded-lg border p-4">
           <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
                 {(review.user?.first_name?.[0] || review.user?.email?.[0] || "A").toUpperCase()}
               </div>
               <span className="text-sm font-medium">
@@ -339,7 +339,7 @@ function ReviewSection({ productId }: { productId: number }) {
               />
             ))}
           </div>
-          <p className="text-sm leading-relaxed text-gray-700">{review.comment}</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">{review.comment}</p>
         </div>
       ))}
     </div>
