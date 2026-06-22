@@ -8,7 +8,8 @@ from app.db.session import Base
 
 
 class OrderStatus(str, enum.Enum):
-    PENDING = "PENDING"
+    PENDING_PAYMENT = "PENDING_PAYMENT"
+    PAID = "PAID"
     CONFIRMED = "CONFIRMED"
     SHIPPED = "SHIPPED"
     DELIVERED = "DELIVERED"
@@ -20,7 +21,7 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING, nullable=False)
+    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING_PAYMENT, nullable=False)
     shipping_name = Column(String, nullable=False)
     shipping_phone = Column(String, nullable=False)
     shipping_address_line_1 = Column(String, nullable=False)
@@ -33,6 +34,11 @@ class Order(Base):
     total = Column(Float, nullable=False, default=0.0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    # Payment fields
+    razorpay_order_id = Column(String, nullable=True, index=True)
+    razorpay_payment_id = Column(String, nullable=True)
+    payment_status = Column(String, nullable=True, default=None)
 
     user = relationship("User", back_populates="orders")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")

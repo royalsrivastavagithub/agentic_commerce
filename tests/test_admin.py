@@ -122,7 +122,7 @@ def _create_address(db: Session, user_id: int) -> Address:
 def _create_order(db: Session, user_id: int, product_id: int, total: float = 200.0) -> Order:
     order = Order(
         user_id=user_id,
-        status=OrderStatus.PENDING,
+        status=OrderStatus.PAID,
         shipping_name="Test", shipping_phone="123",
         shipping_address_line_1="Addr", shipping_city="City",
         shipping_state="State", shipping_country="Country",
@@ -345,15 +345,8 @@ class TestAdminDashboard:
         user = _create_user(db)
         cat_id = _create_category(db)
         product = _create_product(db, cat_id, {"stock": 3})
-        address = _create_address(db, user.id)
 
-        cart = Cart(user_id=user.id)
-        db.add(cart)
-        db.flush()
-        db.add(CartItem(cart_id=cart.id, product_id=product.id, quantity=2))
-        db.commit()
-
-        client.post("/api/v1/orders", json={"address_id": address.id}, headers=_token(user))
+        _create_order(db, user.id, product.id, total=200.0)
 
         resp = client.get("/api/v1/admin/dashboard/summary", headers=_token(admin))
         data = resp.json()
@@ -363,7 +356,7 @@ class TestAdminDashboard:
         assert data["total_revenue"] == 200.0
         assert data["avg_order_value"] == 200.0
         assert data["low_stock_count"] == 1
-        assert data["orders_by_status"]["PENDING"] == 1
+        assert data["orders_by_status"]["PAID"] == 1
 
     def test_top_products_requires_admin(self, client: TestClient, db: Session):
         user = _create_user(db)
@@ -375,21 +368,13 @@ class TestAdminDashboard:
         user = _create_user(db)
         cat_id = _create_category(db)
         p = _create_product(db, cat_id)
-        address = _create_address(db, user.id)
-
-        cart = Cart(user_id=user.id)
-        db.add(cart)
-        db.flush()
-        db.add(CartItem(cart_id=cart.id, product_id=p.id, quantity=3))
-        db.commit()
-
-        client.post("/api/v1/orders", json={"address_id": address.id}, headers=_token(user))
+        _create_order(db, user.id, p.id, total=200.0)
 
         resp = client.get("/api/v1/admin/dashboard/top-products", headers=_token(admin))
         data = resp.json()
         assert len(data) == 1
         assert data[0]["id"] == p.id
-        assert data[0]["total_quantity"] == 3
+        assert data[0]["total_quantity"] == 2  # _create_order uses qty=2
 
     def test_recent_orders_requires_admin(self, client: TestClient, db: Session):
         user = _create_user(db)
@@ -401,15 +386,7 @@ class TestAdminDashboard:
         user = _create_user(db)
         cat_id = _create_category(db)
         product = _create_product(db, cat_id)
-        address = _create_address(db, user.id)
-
-        cart = Cart(user_id=user.id)
-        db.add(cart)
-        db.flush()
-        db.add(CartItem(cart_id=cart.id, product_id=product.id, quantity=1))
-        db.commit()
-
-        client.post("/api/v1/orders", json={"address_id": address.id}, headers=_token(user))
+        _create_order(db, user.id, product.id)
 
         resp = client.get("/api/v1/admin/dashboard/recent-orders", headers=_token(admin))
         data = resp.json()

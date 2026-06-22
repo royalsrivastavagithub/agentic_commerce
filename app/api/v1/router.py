@@ -14,6 +14,7 @@ from app.api.v1.endpoints.admin_reviews import router as admin_reviews_router
 from app.api.v1.endpoints.admin_dashboard import router as admin_dashboard_router
 from app.api.v1.endpoints.admin_products import router as admin_products_router
 from app.api.v1.endpoints.admin_categories import router as admin_categories_router
+from app.api.v1.endpoints.webhooks import router as webhooks_router
 
 api_router = APIRouter()
 api_router.include_router(health_router)
@@ -31,4 +32,5 @@ api_router.include_router(admin_reviews_router)
 api_router.include_router(admin_dashboard_router)
 api_router.include_router(admin_products_router)
 api_router.include_router(admin_categories_router)
+api_router.include_router(webhooks_router)
 

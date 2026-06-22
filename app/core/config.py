@@ -23,4 +23,18 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 30 minutes
 
+    # Razorpay payment gateway configuration
+    RAZORPAY_KEY_ID: str = Field(
+        default="",
+        description="Razorpay API Key ID"
+    )
+    RAZORPAY_KEY_SECRET: str = Field(
+        default="",
+        description="Razorpay API Key Secret"
+    )
+    RAZORPAY_WEBHOOK_SECRET: str = Field(
+        default="",
+        description="Razorpay webhook signing secret"
+    )
+
 settings = Settings()

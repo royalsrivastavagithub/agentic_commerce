@@ -3,19 +3,34 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.address import Address
-from app.models.cart import Cart, CartItem
+from app.models.cart import Cart
 from app.models.order import Order, OrderItem, OrderStatus
 from app.models.product import Product
-from app.schemas.order import OrderCreate, OrderResponse
+from app.schemas.order import (
+    CreatePaymentRequest,
+    CreatePaymentResponse,
+    OrderResponse,
+    VerifyPaymentRequest,
+)
 from app.api.deps import get_current_user
 from app.models.user import User
+from app.services.razorpay import (
+    create_razorpay_order,
+    verify_payment_signature,
+)
+from app.core.config import settings
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 
-@router.post("", response_model=OrderResponse, status_code=status.HTTP_201_CREATED, summary="Checkout: place order from cart items")
-def checkout(
-    order_in: OrderCreate,
+@router.post(
+    "/create-payment",
+    response_model=CreatePaymentResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Initiate payment: validate cart, create Razorpay order (no stock deduction yet)",
+)
+def create_payment(
+    req: CreatePaymentRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -28,7 +43,7 @@ def checkout(
 
     address = (
         db.query(Address)
-        .filter(Address.id == order_in.address_id, Address.user_id == current_user.id)
+        .filter(Address.id == req.address_id, Address.user_id == current_user.id)
         .first()
     )
     if not address:
@@ -57,7 +72,7 @@ def checkout(
 
     order = Order(
         user_id=current_user.id,
-        status=OrderStatus.PENDING,
+        status=OrderStatus.PENDING_PAYMENT,
         shipping_name=shipping_name,
         shipping_phone=current_user.phone or "",
         shipping_address_line_1=address.street,
@@ -84,13 +99,97 @@ def checkout(
             subtotal=item_subtotal,
         )
         db.add(order_item)
-        product.stock -= cart_item.quantity
         subtotal += item_subtotal
 
     order.subtotal = round(subtotal, 2)
     order.total = order.subtotal
 
-    cart.items = []
+    try:
+        razorpay_order = create_razorpay_order(
+            amount=order.total,
+            currency="INR",
+            receipt=f"order_{order.id}",
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to create Razorpay order: {str(e)}",
+        )
+
+    order.razorpay_order_id = razorpay_order["id"]
+    db.commit()
+    db.refresh(order)
+
+    return CreatePaymentResponse(
+        order_id=order.id,
+        razorpay_order_id=razorpay_order["id"],
+        amount=order.total,
+        currency="INR",
+        razorpay_key_id=settings.RAZORPAY_KEY_ID,
+    )
+
+
+@router.post(
+    "/verify-payment",
+    response_model=OrderResponse,
+    summary="Verify Razorpay payment signature, deduct stock, clear cart, confirm order",
+)
+def verify_payment(
+    req: VerifyPaymentRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    order = (
+        db.query(Order)
+        .filter(
+            Order.razorpay_order_id == req.razorpay_order_id,
+            Order.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found",
+        )
+
+    if order.status != OrderStatus.PENDING_PAYMENT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Order is in '{order.status.value}' status, expected PENDING_PAYMENT",
+        )
+
+    if not verify_payment_signature(
+        req.razorpay_order_id, req.razorpay_payment_id, req.razorpay_signature
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payment signature verification failed",
+        )
+
+    cart = db.query(Cart).filter(Cart.user_id == current_user.id).first()
+
+    for order_item in order.items:
+        product = db.query(Product).filter(Product.id == order_item.product_id).first()
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Product (id={order_item.product_id}) no longer exists",
+            )
+        if order_item.quantity > product.stock:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Insufficient stock for '{product.title}': {product.stock} available, {order_item.quantity} requested",
+            )
+        product.stock -= order_item.quantity
+
+    if cart:
+        cart.items = []
+
+    order.status = OrderStatus.PAID
+    order.razorpay_payment_id = req.razorpay_payment_id
+    order.payment_status = "paid"
     db.commit()
     db.refresh(order)
     return order
@@ -129,7 +228,7 @@ def get_order(
     return order
 
 
-@router.put("/{order_id}/cancel", response_model=OrderResponse, summary="Cancel a pending order")
+@router.put("/{order_id}/cancel", response_model=OrderResponse, summary="Cancel a pending-payment order")
 def cancel_order(
     order_id: int,
     current_user: User = Depends(get_current_user),
@@ -145,7 +244,7 @@ def cancel_order(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Order not found",
         )
-    if order.status != OrderStatus.PENDING:
+    if order.status != OrderStatus.PENDING_PAYMENT:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot cancel order in '{order.status.value}' status",

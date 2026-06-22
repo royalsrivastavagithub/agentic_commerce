@@ -1,13 +1,31 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.order import OrderStatus
 
 
 class OrderCreate(BaseModel):
     address_id: int
+
+
+class CreatePaymentRequest(BaseModel):
+    address_id: int
+
+
+class CreatePaymentResponse(BaseModel):
+    order_id: int
+    razorpay_order_id: str
+    amount: float
+    currency: str = "INR"
+    razorpay_key_id: str
+
+
+class VerifyPaymentRequest(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
 
 
 class OrderItemResponse(BaseModel):
@@ -37,6 +55,9 @@ class OrderResponse(BaseModel):
     shipping_pincode: str
     subtotal: float
     total: float
+    razorpay_order_id: Optional[str] = None
+    razorpay_payment_id: Optional[str] = None
+    payment_status: Optional[str] = None
     items: list[OrderItemResponse] = []
     created_at: datetime
     updated_at: datetime
