@@ -12,6 +12,7 @@ _cat_counter = 0
 def _setup(db: Session, email: str = "review@test.com"):
     global _cat_counter
     _cat_counter += 1
+    sku = f"REV-{_cat_counter:03d}"
     user = User(
         email=email,
         hashed_password="x",
@@ -40,7 +41,7 @@ def _setup(db: Session, email: str = "review@test.com"):
         review_count=0,
         stock=10,
         tags=[],
-        sku="REV-001",
+        sku=sku,
         weight=1,
         dimensions={"width": 1, "height": 1, "depth": 1},
         warranty_information="1y",
@@ -137,6 +138,16 @@ class TestCreateReview:
             headers=headers,
         )
         assert resp.status_code == 404
+
+    def test_create_review_empty_comment(self, client: TestClient, db: Session):
+        _, headers, product = _setup(db)
+        resp = client.post(
+            f"/api/v1/products/{product.id}/reviews",
+            json={"rating": 3, "comment": ""},
+            headers=headers,
+        )
+        assert resp.status_code == 201
+        assert resp.json()["comment"] == ""
 
 
 class TestRatingRecalculation:
@@ -255,6 +266,22 @@ class TestUpdateReview:
             headers=h2,
         )
         assert resp.status_code == 404
+
+    def test_update_review_empty_comment(self, client: TestClient, db: Session):
+        _, headers, product = _setup(db)
+        created = client.post(
+            f"/api/v1/products/{product.id}/reviews",
+            json={"rating": 4, "comment": "Initial"},
+            headers=headers,
+        ).json()
+
+        resp = client.put(
+            f"/api/v1/reviews/{created['id']}",
+            json={"comment": ""},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["comment"] == ""
 
 
 class TestDeleteReview:

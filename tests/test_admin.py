@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -430,3 +432,24 @@ class TestAdminDashboard:
         user = _create_user(db)
         resp = client.get("/api/v1/admin/dashboard/revenue-over-time", headers=_token(user))
         assert resp.status_code == 403
+
+    def test_revenue_over_time(self, client: TestClient, db: Session):
+        from datetime import timedelta
+
+        admin = _create_admin(db)
+        user = _create_user(db)
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id)
+
+        now = datetime.now(timezone.utc)
+        for days_ago, total in [(10, 100.0), (5, 200.0), (1, 300.0)]:
+            order = _create_order(db, user.id, product.id, total=total)
+            order.created_at = now - timedelta(days=days_ago)
+            db.commit()
+
+        resp = client.get("/api/v1/admin/dashboard/revenue-over-time?days=30", headers=_token(admin))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 3
+        total_rev = sum(d["revenue"] for d in data)
+        assert total_rev == 600.0

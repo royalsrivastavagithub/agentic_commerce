@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, status
@@ -59,7 +59,7 @@ def revenue_over_time(
     current_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
 ):
-    cutoff = datetime.now(timezone.utc)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     results = (
         db.query(
             func.date(Order.created_at).label("date"),

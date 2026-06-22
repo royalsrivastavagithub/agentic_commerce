@@ -17,7 +17,7 @@ class Product(Base):
     stock = Column(Integer, nullable=False)
     tags = Column(JSON, nullable=False)
     brand = Column(String, nullable=True)
-    sku = Column(String, nullable=False)
+    sku = Column(String, nullable=False, unique=True)
     weight = Column(Float, nullable=False)
     dimensions = Column(JSON, nullable=False)
     warranty_information = Column("warrantyInformation", String, nullable=False)

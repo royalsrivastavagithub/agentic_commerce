@@ -219,6 +219,20 @@ class TestCreateProduct:
         )
         assert resp.status_code == 201
 
+    def test_duplicate_sku_returns_409(self, client: TestClient, admin_token_headers):
+        cat = _create_category(client, headers=admin_token_headers)
+        client.post(
+            "/api/v1/admin/products",
+            json={**SAMPLE_PRODUCT, "sku": "DUP-SKU", "category_id": cat["id"]},
+            headers=admin_token_headers,
+        )
+        resp = client.post(
+            "/api/v1/admin/products",
+            json={**SAMPLE_PRODUCT, "id": 999, "sku": "DUP-SKU", "category_id": cat["id"]},
+            headers=admin_token_headers,
+        )
+        assert resp.status_code == 409
+
 
 class TestGetProduct:
     def test_get_existing(self, client: TestClient, admin_token_headers):
@@ -312,6 +326,17 @@ class TestUpdateProduct:
         resp = client.put(
             f"/api/v1/admin/products/{created['id']}",
             json={"sku": None},
+            headers=admin_token_headers,
+        )
+        assert resp.status_code == 409
+
+    def test_update_duplicate_sku_returns_409(self, client: TestClient, admin_token_headers):
+        cat = _create_category(client, headers=admin_token_headers)
+        p1 = _create_product(client, {"sku": "UNIQUE-SKU", "category_id": cat["id"]}, headers=admin_token_headers)
+        p2 = _create_product(client, {"sku": "OTHER-SKU", "category_id": cat["id"]}, headers=admin_token_headers)
+        resp = client.put(
+            f"/api/v1/admin/products/{p2['id']}",
+            json={"sku": "UNIQUE-SKU"},
             headers=admin_token_headers,
         )
         assert resp.status_code == 409

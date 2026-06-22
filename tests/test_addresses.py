@@ -237,6 +237,22 @@ class TestUpdateAddress:
         )
         assert resp.status_code == 404
 
+    def test_update_empty_city_returns_200(self, client: TestClient, db: Session):
+        token = _create_user_and_get_token(db, "update_empty_city@test.com")
+        created = client.post(
+            "/api/v1/users/me/addresses",
+            json=SAMPLE_ADDRESS,
+            headers=_auth_headers(token),
+        ).json()
+
+        resp = client.put(
+            f"/api/v1/users/me/addresses/{created['id']}",
+            json={"city": ""},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["city"] == ""
+
 
 class TestDeleteAddress:
     def test_delete_own_address(self, client: TestClient, db: Session):

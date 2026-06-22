@@ -201,6 +201,19 @@ class TestAddItem:
         )
         assert resp.status_code == 404
 
+    def test_add_item_with_zero_quantity(self, client: TestClient, db: Session):
+        token = _create_user_token(db)
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id)
+
+        resp = client.post(
+            "/api/v1/cart/items",
+            json={"product_id": product.id, "quantity": 0},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 201
+        assert resp.json()["quantity"] == 0
+
 
 class TestUpdateItem:
     def test_update_quantity(self, client: TestClient, db: Session):
@@ -267,6 +280,25 @@ class TestUpdateItem:
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 404
+
+    def test_update_quantity_to_zero(self, client: TestClient, db: Session):
+        token = _create_user_token(db)
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id)
+
+        created = client.post(
+            "/api/v1/cart/items",
+            json={"product_id": product.id, "quantity": 1},
+            headers={"Authorization": f"Bearer {token}"},
+        ).json()
+
+        resp = client.put(
+            f"/api/v1/cart/items/{created['id']}",
+            json={"quantity": 0},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["quantity"] == 0
 
 
 class TestRemoveItem:

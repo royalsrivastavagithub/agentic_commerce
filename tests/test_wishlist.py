@@ -7,7 +7,11 @@ from app.models.product import Product
 from app.core.security import create_access_token
 
 
+_wl_counter = 0
+
 def _setup(client: TestClient, db: Session, email: str = "wl@test.com", cat_name: str = "wl-cat"):
+    global _wl_counter
+    _wl_counter += 1
     user = User(
         email=email,
         hashed_password="x",
@@ -35,7 +39,7 @@ def _setup(client: TestClient, db: Session, email: str = "wl@test.com", cat_name
         rating=4,
         stock=10,
         tags=[],
-        sku="WL-001",
+        sku=f"WL-{_wl_counter:03d}",
         weight=1,
         dimensions={"width": 1, "height": 1, "depth": 1},
         warranty_information="1y",
