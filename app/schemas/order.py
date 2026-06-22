@@ -36,6 +36,7 @@ class OrderResponse(BaseModel):
     shipping_country: str
     shipping_pincode: str
     subtotal: float
+    total: float
     items: list[OrderItemResponse] = []
     created_at: datetime
     updated_at: datetime

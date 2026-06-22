@@ -88,6 +88,7 @@ def checkout(
         subtotal += item_subtotal
 
     order.subtotal = round(subtotal, 2)
+    order.total = order.subtotal
 
     cart.items = []
     db.commit()

@@ -30,6 +30,7 @@ class Order(Base):
     shipping_country = Column(String, nullable=False)
     shipping_pincode = Column(String, nullable=False)
     subtotal = Column(Float, nullable=False)
+    total = Column(Float, nullable=False, default=0.0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
