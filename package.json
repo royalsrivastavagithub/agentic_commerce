@@ -1,0 +1,13 @@
+{
+  "name": "agentic-commerce",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && .venv/bin/uvicorn app.main:app --reload",
+    "frontend": "cd frontend && npx next dev",
+    "postinstall": "cd frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
