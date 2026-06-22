@@ -8,14 +8,6 @@ class DimensionSchema(BaseModel):
     depth: float
 
 
-class ReviewSchema(BaseModel):
-    rating: int
-    comment: str
-    date: str
-    reviewerName: str
-    reviewerEmail: str
-
-
 class MetaSchema(BaseModel):
     createdAt: str
     updatedAt: str
@@ -34,6 +26,7 @@ class ProductSchema(BaseModel):
     price: float
     discount_percentage: float = Field(alias="discountPercentage")
     rating: float
+    review_count: int = 0
     stock: int
     tags: list[str]
     brand: Optional[str] = None
@@ -43,7 +36,6 @@ class ProductSchema(BaseModel):
     warranty_information: str = Field(alias="warrantyInformation")
     shipping_information: str = Field(alias="shippingInformation")
     availability_status: str = Field(alias="availabilityStatus")
-    reviews: list[ReviewSchema]
     return_policy: str = Field(alias="returnPolicy")
     minimum_order_quantity: int = Field(alias="minimumOrderQuantity")
     meta: MetaSchema
@@ -60,7 +52,8 @@ class ProductCreate(BaseModel):
     category_id: int
     price: float
     discount_percentage: float = Field(alias="discountPercentage")
-    rating: float
+    rating: float = 0
+    review_count: int = 0
     stock: int
     tags: list[str]
     brand: Optional[str] = None
@@ -70,7 +63,6 @@ class ProductCreate(BaseModel):
     warranty_information: str = Field(alias="warrantyInformation")
     shipping_information: str = Field(alias="shippingInformation")
     availability_status: str = Field(alias="availabilityStatus")
-    reviews: list[ReviewSchema]
     return_policy: str = Field(alias="returnPolicy")
     minimum_order_quantity: int = Field(alias="minimumOrderQuantity")
     meta: MetaSchema
@@ -96,7 +88,6 @@ class ProductUpdate(BaseModel):
     warranty_information: Optional[str] = Field(default=None, alias="warrantyInformation")
     shipping_information: Optional[str] = Field(default=None, alias="shippingInformation")
     availability_status: Optional[str] = Field(default=None, alias="availabilityStatus")
-    reviews: Optional[list[ReviewSchema]] = None
     return_policy: Optional[str] = Field(default=None, alias="returnPolicy")
     minimum_order_quantity: Optional[int] = Field(default=None, alias="minimumOrderQuantity")
     meta: Optional[MetaSchema] = None

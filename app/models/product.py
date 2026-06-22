@@ -12,7 +12,8 @@ class Product(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False, index=True)
     price = Column(Float, nullable=False)
     discount_percentage = Column("discountPercentage", Float, nullable=False)
-    rating = Column(Float, nullable=False)
+    rating = Column(Float, nullable=False, default=0)
+    review_count = Column(Integer, nullable=False, default=0)
     stock = Column(Integer, nullable=False)
     tags = Column(JSON, nullable=False)
     brand = Column(String, nullable=True)
@@ -22,7 +23,6 @@ class Product(Base):
     warranty_information = Column("warrantyInformation", String, nullable=False)
     shipping_information = Column("shippingInformation", String, nullable=False)
     availability_status = Column("availabilityStatus", String, nullable=False)
-    reviews = Column(JSON, nullable=False)
     return_policy = Column("returnPolicy", String, nullable=False)
     minimum_order_quantity = Column("minimumOrderQuantity", Integer, nullable=False)
     meta = Column(JSON, nullable=False)
@@ -30,6 +30,7 @@ class Product(Base):
     thumbnail = Column(String, nullable=False)
 
     category_rel = relationship("Category", lazy="joined")
+    reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan", lazy="select")
 
     @property
     def category(self):

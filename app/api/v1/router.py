@@ -8,6 +8,7 @@ from app.api.v1.endpoints.cart import router as cart_router
 from app.api.v1.endpoints.orders import router as orders_router
 from app.api.v1.endpoints.admin_orders import router as admin_orders_router
 from app.api.v1.endpoints.wishlist import router as wishlist_router
+from app.api.v1.endpoints.reviews import router as reviews_router
 
 api_router = APIRouter()
 api_router.include_router(health_router)
@@ -19,4 +20,5 @@ api_router.include_router(cart_router)
 api_router.include_router(orders_router)
 api_router.include_router(admin_orders_router)
 api_router.include_router(wishlist_router)
+api_router.include_router(reviews_router)
 

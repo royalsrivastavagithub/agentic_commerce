@@ -8,3 +8,4 @@ from app.models.address import Address
 from app.models.cart import Cart, CartItem
 from app.models.order import Order, OrderItem
 from app.models.wishlist import WishlistItem
+from app.models.review import Review
