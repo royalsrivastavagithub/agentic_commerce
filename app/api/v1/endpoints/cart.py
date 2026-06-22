@@ -34,7 +34,7 @@ def _compute_total(items: list[CartItem]) -> float:
     ), 2)
 
 
-@router.get("", response_model=CartResponse)
+@router.get("", response_model=CartResponse, summary="Get current user cart")
 def get_cart(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -53,7 +53,7 @@ def get_cart(
     )
 
 
-@router.post("/items", response_model=CartItemResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/items", response_model=CartItemResponse, status_code=status.HTTP_201_CREATED, summary="Add item to cart (increments quantity if already present)")
 def add_cart_item(
     item_in: CartItemCreate,
     current_user: User = Depends(get_current_user),
@@ -101,7 +101,7 @@ def add_cart_item(
     return cart_item
 
 
-@router.put("/items/{item_id}", response_model=CartItemResponse)
+@router.put("/items/{item_id}", response_model=CartItemResponse, summary="Update cart item quantity")
 def update_cart_item(
     item_id: int,
     item_in: CartItemUpdate,
@@ -122,7 +122,7 @@ def update_cart_item(
     return cart_item
 
 
-@router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove item from cart")
 def remove_cart_item(
     item_id: int,
     current_user: User = Depends(get_current_user),
@@ -133,7 +133,7 @@ def remove_cart_item(
     db.commit()
 
 
-@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT, summary="Clear all items from cart")
 def clear_cart(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

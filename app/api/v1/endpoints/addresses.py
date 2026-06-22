@@ -10,7 +10,7 @@ from app.models.user import User
 router = APIRouter(prefix="/users/me/addresses", tags=["addresses"])
 
 
-@router.get("", response_model=list[AddressResponse])
+@router.get("", response_model=list[AddressResponse], summary="List user addresses")
 def list_addresses(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -22,7 +22,7 @@ def list_addresses(
     )
 
 
-@router.post("", response_model=AddressResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=AddressResponse, status_code=status.HTTP_201_CREATED, summary="Create a new address")
 def create_address(
     address_in: AddressCreate,
     current_user: User = Depends(get_current_user),
@@ -38,7 +38,7 @@ def create_address(
     return address
 
 
-@router.put("/{address_id}", response_model=AddressResponse)
+@router.put("/{address_id}", response_model=AddressResponse, summary="Update an address")
 def update_address(
     address_id: int,
     address_in: AddressUpdate,
@@ -60,7 +60,7 @@ def update_address(
     return address
 
 
-@router.delete("/{address_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{address_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete an address")
 def delete_address(
     address_id: int,
     current_user: User = Depends(get_current_user),
@@ -71,7 +71,7 @@ def delete_address(
     db.commit()
 
 
-@router.put("/{address_id}/default", response_model=AddressResponse)
+@router.put("/{address_id}/default", response_model=AddressResponse, summary="Set address as default")
 def set_default_address(
     address_id: int,
     current_user: User = Depends(get_current_user),

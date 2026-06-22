@@ -28,7 +28,7 @@ def _recalculate_product_rating(product_id: int, db: Session) -> None:
         db.flush()
 
 
-@router.get("/products/{product_id}/reviews", response_model=list[ReviewResponse])
+@router.get("/products/{product_id}/reviews", response_model=list[ReviewResponse], summary="List reviews for a product")
 def list_reviews(
     product_id: int,
     db: Session = Depends(get_db),
@@ -47,7 +47,7 @@ def list_reviews(
     )
 
 
-@router.post("/products/{product_id}/reviews", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/products/{product_id}/reviews", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED, summary="Create a review for a product")
 def create_review(
     product_id: int,
     review_in: ReviewCreate,
@@ -86,7 +86,7 @@ def create_review(
     return review
 
 
-@router.put("/reviews/{review_id}", response_model=ReviewResponse)
+@router.put("/reviews/{review_id}", response_model=ReviewResponse, summary="Update own review")
 def update_review(
     review_id: int,
     review_in: ReviewUpdate,
@@ -116,7 +116,7 @@ def update_review(
     return review
 
 
-@router.delete("/reviews/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/reviews/{review_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete own review")
 def delete_review(
     review_id: int,
     current_user: User = Depends(get_current_user),

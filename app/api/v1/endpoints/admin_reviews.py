@@ -8,7 +8,7 @@ from app.models.user import User
 from app.schemas.review import ReviewResponse
 from app.api.deps import get_current_admin_user
 
-router = APIRouter(prefix="/admin/reviews", tags=["admin"])
+router = APIRouter(prefix="/admin/reviews", tags=["admin-reviews"])
 
 
 def _recalculate_product_rating(product_id: int, db: Session):
@@ -25,7 +25,7 @@ def _recalculate_product_rating(product_id: int, db: Session):
         db.commit()
 
 
-@router.get("", response_model=list[ReviewResponse])
+@router.get("", response_model=list[ReviewResponse], summary="List all reviews (filterable by product)")
 def list_all_reviews(
     product_id: int | None = Query(None),
     user_id: int | None = Query(None),
@@ -42,7 +42,7 @@ def list_all_reviews(
     return query.order_by(Review.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
 
 
-@router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a review (recalculates product rating)")
 def delete_review(
     review_id: int,
     current_user: User = Depends(get_current_admin_user),

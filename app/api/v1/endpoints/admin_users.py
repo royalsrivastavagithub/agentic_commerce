@@ -8,10 +8,10 @@ from app.models.user import User
 from app.schemas.admin import AdminUserResponse, AdminUserUpdate
 from app.api.deps import get_current_admin_user
 
-router = APIRouter(prefix="/admin/users", tags=["admin"])
+router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 
 
-@router.get("", response_model=list[AdminUserResponse])
+@router.get("", response_model=list[AdminUserResponse], summary="List users with search and pagination")
 def list_users(
     search: str = Query("", max_length=100),
     page: int = Query(1, ge=1),
@@ -58,7 +58,7 @@ def list_users(
     return results
 
 
-@router.get("/{user_id}", response_model=AdminUserResponse)
+@router.get("/{user_id}", response_model=AdminUserResponse, summary="Get user details with order stats")
 def get_user(
     user_id: int,
     current_user: User = Depends(get_current_admin_user),
@@ -93,7 +93,7 @@ def get_user(
     )
 
 
-@router.patch("/{user_id}", response_model=AdminUserResponse)
+@router.patch("/{user_id}", response_model=AdminUserResponse, summary="Update a user (name, role, active status)")
 def update_user(
     user_id: int,
     update_in: AdminUserUpdate,
@@ -135,7 +135,7 @@ def update_user(
     )
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a user")
 def delete_user(
     user_id: int,
     current_user: User = Depends(get_current_admin_user),

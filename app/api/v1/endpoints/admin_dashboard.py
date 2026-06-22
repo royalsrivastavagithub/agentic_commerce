@@ -18,10 +18,10 @@ from app.schemas.admin import (
 )
 from app.api.deps import get_current_admin_user
 
-router = APIRouter(prefix="/admin/dashboard", tags=["admin"])
+router = APIRouter(prefix="/admin/dashboard", tags=["admin-dashboard"])
 
 
-@router.get("/summary", response_model=DashboardSummary)
+@router.get("/summary", response_model=DashboardSummary, summary="Dashboard summary metrics")
 def dashboard_summary(
     current_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
@@ -53,7 +53,7 @@ def dashboard_summary(
     )
 
 
-@router.get("/revenue-over-time", response_model=list[RevenuePoint])
+@router.get("/revenue-over-time", response_model=list[RevenuePoint], summary="Revenue breakdown by day")
 def revenue_over_time(
     days: int = Query(30, ge=1, le=365),
     current_user: User = Depends(get_current_admin_user),
@@ -73,7 +73,7 @@ def revenue_over_time(
     return [RevenuePoint(date=r[0], revenue=float(r[1])) for r in results]
 
 
-@router.get("/top-products", response_model=list[TopProduct])
+@router.get("/top-products", response_model=list[TopProduct], summary="Top selling products")
 def top_products(
     limit: int = Query(10, ge=1, le=50),
     current_user: User = Depends(get_current_admin_user),
@@ -103,7 +103,7 @@ def top_products(
     ]
 
 
-@router.get("/recent-orders", response_model=list[RecentOrder])
+@router.get("/recent-orders", response_model=list[RecentOrder], summary="Most recent orders")
 def recent_orders(
     limit: int = Query(10, ge=1, le=50),
     current_user: User = Depends(get_current_admin_user),
@@ -129,7 +129,7 @@ def recent_orders(
     ]
 
 
-@router.get("/recent-users", response_model=list[RecentUser])
+@router.get("/recent-users", response_model=list[RecentUser], summary="Most recently registered users")
 def recent_users(
     limit: int = Query(10, ge=1, le=50),
     current_user: User = Depends(get_current_admin_user),

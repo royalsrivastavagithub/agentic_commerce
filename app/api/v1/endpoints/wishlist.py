@@ -12,7 +12,7 @@ from app.models.user import User
 router = APIRouter(prefix="/wishlist", tags=["wishlist"])
 
 
-@router.get("", response_model=list[WishlistItemResponse])
+@router.get("", response_model=list[WishlistItemResponse], summary="List wishlist items")
 def list_wishlist(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -36,7 +36,7 @@ def list_wishlist(
     ]
 
 
-@router.post("", response_model=WishlistItemResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=WishlistItemResponse, status_code=status.HTTP_201_CREATED, summary="Add product to wishlist")
 def add_to_wishlist(
     item_in: WishlistItemCreate,
     current_user: User = Depends(get_current_user),
@@ -75,7 +75,7 @@ def add_to_wishlist(
     )
 
 
-@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove item from wishlist")
 def remove_from_wishlist(
     item_id: int,
     current_user: User = Depends(get_current_user),

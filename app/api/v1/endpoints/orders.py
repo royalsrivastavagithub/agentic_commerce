@@ -13,7 +13,7 @@ from app.models.user import User
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 
-@router.post("", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=OrderResponse, status_code=status.HTTP_201_CREATED, summary="Checkout: place order from cart items")
 def checkout(
     order_in: OrderCreate,
     current_user: User = Depends(get_current_user),
@@ -96,7 +96,7 @@ def checkout(
     return order
 
 
-@router.get("", response_model=list[OrderResponse])
+@router.get("", response_model=list[OrderResponse], summary="List current user orders")
 def list_orders(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -110,7 +110,7 @@ def list_orders(
     return orders
 
 
-@router.get("/{order_id}", response_model=OrderResponse)
+@router.get("/{order_id}", response_model=OrderResponse, summary="Get order by ID")
 def get_order(
     order_id: int,
     current_user: User = Depends(get_current_user),
@@ -129,7 +129,7 @@ def get_order(
     return order
 
 
-@router.put("/{order_id}/cancel", response_model=OrderResponse)
+@router.put("/{order_id}/cancel", response_model=OrderResponse, summary="Cancel a pending order")
 def cancel_order(
     order_id: int,
     current_user: User = Depends(get_current_user),

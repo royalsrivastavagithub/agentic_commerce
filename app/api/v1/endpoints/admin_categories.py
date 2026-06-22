@@ -8,10 +8,10 @@ from app.models.user import User
 from app.schemas.category import CategorySchema, CategoryCreate, CategoryUpdate
 from app.api.deps import get_current_admin_user
 
-router = APIRouter(prefix="/admin/categories", tags=["admin"])
+router = APIRouter(prefix="/admin/categories", tags=["admin-categories"])
 
 
-@router.post("", response_model=CategorySchema, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=CategorySchema, status_code=status.HTTP_201_CREATED, summary="Create a new category")
 def create_category(
     category_in: CategoryCreate,
     db: Session = Depends(get_db),
@@ -30,7 +30,7 @@ def create_category(
     return category
 
 
-@router.put("/{category_id}", response_model=CategorySchema)
+@router.put("/{category_id}", response_model=CategorySchema, summary="Update a category")
 def update_category(
     category_id: int,
     category_in: CategoryUpdate,
@@ -60,7 +60,7 @@ def update_category(
     return category
 
 
-@router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a category")
 def delete_category(
     category_id: int,
     db: Session = Depends(get_db),

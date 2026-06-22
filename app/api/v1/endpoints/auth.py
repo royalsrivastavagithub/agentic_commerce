@@ -33,7 +33,7 @@ def _authenticate_user(email: str, password: str, db: Session) -> User | None:
     return user
 
 
-@router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED, summary="Register a new user")
 def signup(user_in: UserCreate, db: Session = Depends(get_db)):
     existing_user = (
         db.query(User)
@@ -78,7 +78,7 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 
-@router.get("/verify-email")
+@router.get("/verify-email", summary="Verify email address with token")
 def verify_email(
     token: str = Query(..., description="The verification token printed during signup"),
     db: Session = Depends(get_db),
@@ -101,7 +101,7 @@ def verify_email(
     }
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, summary="Login with email and password (JSON)")
 def login(user_in: UserLogin, db: Session = Depends(get_db)):
     user = _authenticate_user(user_in.email, user_in.password, db)
     if not user:
@@ -114,7 +114,7 @@ def login(user_in: UserLogin, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.post("/login/access-token", response_model=Token)
+@router.post("/login/access-token", response_model=Token, summary="Login with email and password (form)")
 def login_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
@@ -130,14 +130,14 @@ def login_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.get("/users/me", response_model=UserResponse)
+@router.get("/users/me", response_model=UserResponse, summary="Get current user profile")
 def read_current_user(
     current_user: User = Depends(get_current_user),
 ):
     return current_user
 
 
-@router.put("/users/me", response_model=UserResponse)
+@router.put("/users/me", response_model=UserResponse, summary="Update current user profile")
 def update_current_user(
     user_in: UserUpdate,
     current_user: User = Depends(get_current_user),
@@ -151,7 +151,7 @@ def update_current_user(
     return current_user
 
 
-@router.put("/users/me/password", response_model=UserResponse)
+@router.put("/users/me/password", response_model=UserResponse, summary="Change current user password")
 def change_password(
     pw_in: PasswordChange,
     current_user: User = Depends(get_current_user),

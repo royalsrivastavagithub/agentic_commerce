@@ -13,6 +13,7 @@ router = APIRouter(tags=["categories"])
 @router.get(
     "/categories",
     response_model=list[CategorySchema],
+    summary="List all categories",
 )
 def get_categories(db: Session = Depends(get_db)):
     return db.query(Category).order_by(Category.name).all()
@@ -21,6 +22,7 @@ def get_categories(db: Session = Depends(get_db)):
 @router.get(
     "/categories/{category_id}",
     response_model=CategorySchema,
+    summary="Get category by ID",
 )
 def get_category(category_id: int, db: Session = Depends(get_db)):
     category = db.query(Category).filter(Category.id == category_id).first()
@@ -36,6 +38,7 @@ def get_category(category_id: int, db: Session = Depends(get_db)):
     "/categories/{category_id}/products",
     response_model=ProductsResponse,
     response_model_by_alias=True,
+    summary="List products by category with pagination",
 )
 def get_products_by_category(
     category_id: int,

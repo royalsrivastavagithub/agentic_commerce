@@ -9,10 +9,10 @@ from app.models.category import Category
 from app.schemas.product import ProductSchema, ProductCreate, ProductUpdate
 from app.api.deps import get_current_admin_user
 
-router = APIRouter(prefix="/admin/products", tags=["admin"])
+router = APIRouter(prefix="/admin/products", tags=["admin-products"])
 
 
-@router.post("", response_model=ProductSchema, status_code=status.HTTP_201_CREATED, response_model_by_alias=True)
+@router.post("", response_model=ProductSchema, status_code=status.HTTP_201_CREATED, response_model_by_alias=True, summary="Create a new product")
 def create_product(
     product_in: ProductCreate,
     db: Session = Depends(get_db),
@@ -38,7 +38,7 @@ def create_product(
     return product
 
 
-@router.put("/{product_id}", response_model=ProductSchema, response_model_by_alias=True)
+@router.put("/{product_id}", response_model=ProductSchema, response_model_by_alias=True, summary="Update a product")
 def update_product(
     product_id: int,
     product_in: ProductUpdate,
@@ -71,7 +71,7 @@ def update_product(
     return product
 
 
-@router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a product")
 def delete_product(
     product_id: int,
     db: Session = Depends(get_db),

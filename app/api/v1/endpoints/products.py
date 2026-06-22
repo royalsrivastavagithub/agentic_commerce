@@ -12,6 +12,7 @@ router = APIRouter(tags=["products"])
     "/products",
     response_model=ProductsResponse,
     response_model_by_alias=True,
+    summary="List products with pagination",
 )
 def get_products(
     skip: int = Query(0, ge=0),
@@ -27,6 +28,7 @@ def get_products(
     "/products/search",
     response_model=ProductsResponse,
     response_model_by_alias=True,
+    summary="Search products by title",
 )
 def search_products(
     q: str = Query(..., min_length=1),
@@ -50,6 +52,7 @@ def search_products(
     "/products/{product_id}",
     response_model=ProductSchema,
     response_model_by_alias=True,
+    summary="Get product by ID",
 )
 def get_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(Product).filter(Product.id == product_id).first()
