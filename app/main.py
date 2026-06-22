@@ -27,8 +27,6 @@ app = FastAPI(
     description="Backend API for Agentic Commerce. Provides a complete e-commerce backend with product catalog, user management, cart, orders, reviews, wishlist, and a full admin dashboard with analytics.",
     version="0.1.0",
     openapi_tags=openapi_tags,
-    contact={"name": "API Support", "url": "https://github.com/anomalyco/opencode"},
-    license_info={"name": "MIT"},
 )
 
 
@@ -41,8 +39,6 @@ def custom_openapi():
         description="Backend API for Agentic Commerce. Provides a complete e-commerce backend with product catalog, user management, cart, orders, reviews, wishlist, and a full admin dashboard with analytics.",
         routes=app.routes,
         tags=openapi_tags,
-        contact={"name": "API Support", "url": "https://github.com/anomalyco/opencode"},
-        license_info={"name": "MIT"},
     )
     openapi_schema["components"]["securitySchemes"] = {
         "BearerAuth": {
