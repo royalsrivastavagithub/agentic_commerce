@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -8,8 +9,8 @@ from app.models.category import Category
 from app.models.product import Product
 from app.models.address import Address
 from app.models.cart import Cart, CartItem
+from app.models.order import Order, OrderStatus
 
-from app.models.order import OrderStatus
 from app.core.security import create_access_token, get_password_hash
 
 
@@ -55,20 +56,6 @@ def _create_user(db: Session, email: str = "orderuser@test.com", name: str | Non
     db.commit()
     db.refresh(user)
     return user
-
-
-def _create_admin(db: Session) -> User:
-    admin = User(
-        email="orderadmin@test.com",
-        hashed_password=get_password_hash("admin123"),
-        is_active=True,
-        is_verified=True,
-        role="admin",
-    )
-    db.add(admin)
-    db.commit()
-    db.refresh(admin)
-    return admin
 
 
 def _user_token(user: User) -> dict:
@@ -337,6 +324,52 @@ class TestCreatePayment:
         assert resp.json()["amount"] == cart_total
         assert resp.json()["amount"] == round(3 * 10.0 + 2 * 20.0, 2)
 
+    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    def test_create_payment_razorpay_failure_returns_502(
+        self, mock_create_order, client: TestClient, db: Session
+    ):
+        mock_create_order.side_effect = Exception("Razorpay API error")
+        user = _create_user(db)
+        headers = _user_token(user)
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id)
+        address = _create_address(db, user.id)
+        _add_to_cart(db, user.id, product.id)
+
+        resp = client.post(
+            "/api/v1/orders/create-payment",
+            json={"address_id": address.id},
+            headers=headers,
+        )
+        assert resp.status_code == 502
+        assert "razorpay" in resp.json()["detail"].lower()
+
+    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    def test_create_payment_shipping_name_falls_back_to_email(
+        self, mock_create_order, client: TestClient, db: Session
+    ):
+        """When user has no first_name/last_name, shipping_name falls back to email."""
+        mock_create_order.return_value = {"id": "rzp_test_order_nameless"}
+        user = _create_user(db, email="nameless@test.com")
+        user.first_name = None
+        user.last_name = None
+        db.commit()
+        headers = _user_token(user)
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id)
+        address = _create_address(db, user.id)
+        _add_to_cart(db, user.id, product.id)
+
+        resp = client.post(
+            "/api/v1/orders/create-payment",
+            json={"address_id": address.id},
+            headers=headers,
+        )
+        assert resp.status_code == 201
+        order_id = resp.json()["order_id"]
+        order_resp = client.get(f"/api/v1/orders/{order_id}", headers=headers)
+        assert order_resp.json()["shipping_name"] == "nameless@test.com"
+
 
 class TestVerifyPayment:
     @patch("app.api.v1.endpoints.orders.verify_payment_signature")
@@ -527,7 +560,6 @@ class TestVerifyPayment:
             headers=headers,
         )
 
-        # Simulate stock depletion between payment initiation and verification
         product.stock = 0
         db.commit()
 
@@ -542,6 +574,119 @@ class TestVerifyPayment:
         )
         assert resp.status_code == 400
         assert "stock" in resp.json()["detail"].lower()
+
+    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
+    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    def test_verify_payment_order_already_paid_returns_400(
+        self, mock_create_order, mock_verify, client: TestClient, db: Session
+    ):
+        mock_create_order.return_value = {"id": "rzp_test_already_paid"}
+        mock_verify.return_value = True
+
+        user = _create_user(db)
+        headers = _user_token(user)
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id, {"stock": 10})
+        address = _create_address(db, user.id)
+        _add_to_cart(db, user.id, product.id, quantity=2)
+
+        client.post(
+            "/api/v1/orders/create-payment",
+            json={"address_id": address.id},
+            headers=headers,
+        )
+
+        order = db.query(Order).filter(Order.razorpay_order_id == "rzp_test_already_paid").first()
+        order.status = OrderStatus.PAID
+        db.commit()
+
+        resp = client.post(
+            "/api/v1/orders/verify-payment",
+            json={
+                "razorpay_order_id": "rzp_test_already_paid",
+                "razorpay_payment_id": "rzp_pay_test_456",
+                "razorpay_signature": "sig",
+            },
+            headers=headers,
+        )
+        assert resp.status_code == 400
+        assert "PENDING_PAYMENT" in resp.json()["detail"]
+
+    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
+    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    def test_verify_payment_product_deleted_returns_400(
+        self, mock_create_order, mock_verify, client: TestClient, db: Session
+    ):
+        mock_create_order.return_value = {"id": "rzp_test_prod_del"}
+        mock_verify.return_value = True
+
+        user = _create_user(db)
+        headers = _user_token(user)
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id, {"stock": 10, "sku": "PROD-DEL"})
+        address = _create_address(db, user.id)
+        _add_to_cart(db, user.id, product.id, quantity=2)
+
+        client.post(
+            "/api/v1/orders/create-payment",
+            json={"address_id": address.id},
+            headers=headers,
+        )
+
+        db.execute(text("PRAGMA foreign_keys=OFF"))
+        db.delete(product)
+        db.commit()
+        db.execute(text("PRAGMA foreign_keys=ON"))
+
+        resp = client.post(
+            "/api/v1/orders/verify-payment",
+            json={
+                "razorpay_order_id": "rzp_test_prod_del",
+                "razorpay_payment_id": "rzp_pay_test_456",
+                "razorpay_signature": "sig",
+            },
+            headers=headers,
+        )
+        assert resp.status_code == 400
+        assert "no longer exists" in resp.json()["detail"]
+
+    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
+    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    def test_verify_payment_cart_is_none(
+        self, mock_create_order, mock_verify, client: TestClient, db: Session
+    ):
+        mock_create_order.return_value = {"id": "rzp_test_no_cart"}
+        mock_verify.return_value = True
+
+        user = _create_user(db)
+        headers = _user_token(user)
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id, {"stock": 10, "sku": "NO-CART"})
+        address = _create_address(db, user.id)
+        _add_to_cart(db, user.id, product.id, quantity=2)
+
+        client.post(
+            "/api/v1/orders/create-payment",
+            json={"address_id": address.id},
+            headers=headers,
+        )
+
+        db.execute(text("PRAGMA foreign_keys=OFF"))
+        db.query(Cart).delete()
+        db.commit()
+        db.execute(text("PRAGMA foreign_keys=ON"))
+
+        resp = client.post(
+            "/api/v1/orders/verify-payment",
+            json={
+                "razorpay_order_id": "rzp_test_no_cart",
+                "razorpay_payment_id": "rzp_pay_test_456",
+                "razorpay_signature": "sig",
+            },
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "PAID"
 
 
 class TestListOrders:
@@ -713,6 +858,11 @@ class TestCancelOrder:
         )
         assert resp.status_code == 400
 
+    def test_cancel_nonexistent_order_returns_404(self, client: TestClient, db: Session):
+        user = _create_user(db)
+        resp = client.put("/api/v1/orders/99999/cancel", headers=_user_token(user))
+        assert resp.status_code == 404
+
     @patch("app.api.v1.endpoints.orders.create_razorpay_order")
     def test_cancel_other_users_order_returns_404(self, mock_create_order, client: TestClient, db: Session):
         mock_create_order.return_value = {"id": "rzp_test_order_123"}
@@ -736,65 +886,4 @@ class TestCancelOrder:
         assert resp.status_code == 404
 
 
-class TestAdminOrders:
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
-    def test_list_all_orders(self, mock_create_order, client: TestClient, db: Session):
-        mock_create_order.return_value = {"id": "rzp_test_order_123"}
-        user = _create_user(db)
-        admin = _create_admin(db)
-        cat_id = _create_category(db)
-        product = _create_product(db, cat_id)
-        address = _create_address(db, user.id)
-        _add_to_cart(db, user.id, product.id)
-        client.post("/api/v1/orders/create-payment", json={"address_id": address.id}, headers=_user_token(user))
 
-        resp = client.get("/api/v1/admin/orders", headers=_user_token(admin))
-        assert resp.status_code == 200
-        assert len(resp.json()) == 1
-
-    def test_non_admin_cannot_list_all_orders(self, client: TestClient, db: Session):
-        user = _create_user(db)
-        resp = client.get("/api/v1/admin/orders", headers=_user_token(user))
-        assert resp.status_code == 403
-
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
-    def test_update_order_status(self, mock_create_order, client: TestClient, db: Session):
-        mock_create_order.return_value = {"id": "rzp_test_order_123"}
-        user = _create_user(db)
-        admin = _create_admin(db)
-        cat_id = _create_category(db)
-        product = _create_product(db, cat_id)
-        address = _create_address(db, user.id)
-        _add_to_cart(db, user.id, product.id)
-
-        created = client.post(
-            "/api/v1/orders/create-payment",
-            json={"address_id": address.id},
-            headers=_user_token(user),
-        ).json()
-
-        resp = client.patch(
-            f"/api/v1/admin/orders/{created['order_id']}/status",
-            json={"status": "SHIPPED"},
-            headers=_user_token(admin),
-        )
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "SHIPPED"
-
-    def test_update_status_non_admin_forbidden(self, client: TestClient, db: Session):
-        user = _create_user(db)
-        resp = client.patch(
-            "/api/v1/admin/orders/99999/status",
-            json={"status": "SHIPPED"},
-            headers=_user_token(user),
-        )
-        assert resp.status_code == 403
-
-    def test_update_nonexistent_order_returns_404(self, client: TestClient, db: Session):
-        admin = _create_admin(db)
-        resp = client.patch(
-            "/api/v1/admin/orders/99999/status",
-            json={"status": "SHIPPED"},
-            headers=_user_token(admin),
-        )
-        assert resp.status_code == 404

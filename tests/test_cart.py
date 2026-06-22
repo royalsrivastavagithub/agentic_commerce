@@ -214,6 +214,19 @@ class TestAddItem:
         assert resp.status_code == 201
         assert resp.json()["quantity"] == 0
 
+    def test_add_item_with_negative_quantity(self, client: TestClient, db: Session):
+        token = _create_user_token(db)
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id)
+
+        resp = client.post(
+            "/api/v1/cart/items",
+            json={"product_id": product.id, "quantity": -3},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 201
+        assert resp.json()["quantity"] == -3
+
 
 class TestUpdateItem:
     def test_update_quantity(self, client: TestClient, db: Session):

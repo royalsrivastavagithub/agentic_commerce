@@ -483,3 +483,48 @@ class TestUserProfile:
         )
         assert resp.status_code == 400
         assert resp.json()["detail"] == "Current password is incorrect"
+
+    def test_rate_limiting_on_login(self, client: TestClient):
+        MAX_R = 50
+        got_429 = False
+        for _ in range(MAX_R):
+            resp = client.post(
+                "/api/v1/auth/login",
+                json={"email": "ratelimit-login@test.com", "password": "x"},
+            )
+            if resp.status_code == 429:
+                got_429 = True
+                break
+        assert got_429, f"Rate limiter did not trigger after {MAX_R} login requests"
+
+    def test_rate_limiting_on_signup(self, client: TestClient):
+        MAX_R = 50
+        got_429 = False
+        for i in range(MAX_R):
+            resp = client.post(
+                "/api/v1/auth/signup",
+                json={"email": f"ratelimit-signup{i}@test.com", "password": "str0ng!pass"},
+            )
+            if resp.status_code == 429:
+                got_429 = True
+                break
+        assert got_429, f"Rate limiter did not trigger after {MAX_R} signup requests"
+
+    def test_rate_limiting_on_change_password(self, client: TestClient, db: Session):
+        user = User(email="ratepw@test.com", hashed_password="x", is_active=True, is_verified=True)
+        db.add(user)
+        db.commit()
+        token = create_access_token(subject=user.id, role="user")
+        headers = {"Authorization": f"Bearer {token}"}
+        MAX_R = 50
+        got_429 = False
+        for _ in range(MAX_R):
+            resp = client.put(
+                "/api/v1/auth/users/me/password",
+                json={"current_password": "wrong", "new_password": "newpass456"},
+                headers=headers,
+            )
+            if resp.status_code == 429:
+                got_429 = True
+                break
+        assert got_429, f"Rate limiter did not trigger after {MAX_R} change-password requests"

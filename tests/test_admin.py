@@ -320,6 +320,59 @@ class TestAdminReviews:
         assert product.review_count == 1
 
 
+# ─── Admin Orders ───────────────────────────────────────────────────
+
+class TestAdminOrders:
+    def test_list_all_orders(self, client: TestClient, db: Session):
+        admin = _create_admin(db)
+        user = _create_user(db)
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id)
+        _create_order(db, user.id, product.id)
+
+        resp = client.get("/api/v1/admin/orders", headers=_token(admin))
+        assert resp.status_code == 200
+        assert len(resp.json()) == 1
+
+    def test_non_admin_cannot_list_all_orders(self, client: TestClient, db: Session):
+        user = _create_user(db)
+        resp = client.get("/api/v1/admin/orders", headers=_token(user))
+        assert resp.status_code == 403
+
+    def test_update_order_status(self, client: TestClient, db: Session):
+        admin = _create_admin(db)
+        user = _create_user(db)
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id)
+        order = _create_order(db, user.id, product.id)
+
+        resp = client.patch(
+            f"/api/v1/admin/orders/{order.id}/status",
+            json={"status": "SHIPPED"},
+            headers=_token(admin),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "SHIPPED"
+
+    def test_update_status_non_admin_forbidden(self, client: TestClient, db: Session):
+        user = _create_user(db)
+        resp = client.patch(
+            "/api/v1/admin/orders/99999/status",
+            json={"status": "SHIPPED"},
+            headers=_token(user),
+        )
+        assert resp.status_code == 403
+
+    def test_update_nonexistent_order_returns_404(self, client: TestClient, db: Session):
+        admin = _create_admin(db)
+        resp = client.patch(
+            "/api/v1/admin/orders/99999/status",
+            json={"status": "SHIPPED"},
+            headers=_token(admin),
+        )
+        assert resp.status_code == 404
+
+
 # ─── Admin Dashboard ────────────────────────────────────────────────
 
 class TestAdminDashboard:
@@ -430,3 +483,71 @@ class TestAdminDashboard:
         assert len(data) == 3
         total_rev = sum(d["revenue"] for d in data)
         assert total_rev == 600.0
+
+    def test_revenue_over_time_default_days(self, client: TestClient, db: Session):
+        from datetime import timedelta
+
+        admin = _create_admin(db)
+        user = _create_user(db)
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id)
+
+        now = datetime.now(timezone.utc)
+        order = _create_order(db, user.id, product.id, total=100.0)
+        order.created_at = now - timedelta(days=45)
+        db.commit()
+
+        resp = client.get("/api/v1/admin/dashboard/revenue-over-time", headers=_token(admin))
+        assert resp.status_code == 200
+        # default is 30 days, so the 45-day-old order should NOT appear
+        assert len(resp.json()) == 0
+
+    def test_top_products_with_limit(self, client: TestClient, db: Session):
+        admin = _create_admin(db)
+        user = _create_user(db)
+        cat_id = _create_category(db)
+        p1 = _create_product(db, cat_id, {"sku": "TPL-1"})
+        p2 = _create_product(db, cat_id, {"sku": "TPL-2", "title": "P2"})
+        _create_order(db, user.id, p1.id, total=100.0)
+        _create_order(db, user.id, p2.id, total=200.0)
+
+        resp = client.get("/api/v1/admin/dashboard/top-products?limit=1", headers=_token(admin))
+        assert len(resp.json()) == 1
+
+    def test_recent_orders_empty(self, client: TestClient, db: Session):
+        admin = _create_admin(db)
+        resp = client.get("/api/v1/admin/dashboard/recent-orders", headers=_token(admin))
+        assert resp.json() == []
+
+    def test_admin_reviews_filter_by_user_id(self, client: TestClient, db: Session):
+        admin = _create_admin(db)
+        user1 = _create_user(db, "reviewer1@test.com")
+        user2 = _create_user(db, "reviewer2@test.com")
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id)
+        from app.models.review import Review
+        db.add(Review(user_id=user1.id, product_id=product.id, rating=5, comment="Great"))
+        db.add(Review(user_id=user2.id, product_id=product.id, rating=3, comment="OK"))
+        db.commit()
+
+        resp = client.get(f"/api/v1/admin/reviews?user_id={user1.id}", headers=_token(admin))
+        assert len(resp.json()) == 1
+        assert resp.json()[0]["user_id"] == user1.id
+
+    def test_admin_reviews_pagination(self, client: TestClient, db: Session):
+        admin = _create_admin(db)
+        cat_id = _create_category(db)
+        from app.models.review import Review
+        for i in range(5):
+            user = _create_user(db, f"pagerev{i}@test.com")
+            product = _create_product(db, cat_id, {"sku": f"PAGRV-{i}", "title": f"Product {i}"})
+            db.add(Review(user_id=user.id, product_id=product.id, rating=4, comment=f"R{i}"))
+        db.commit()
+
+        resp = client.get("/api/v1/admin/reviews?page=1&per_page=2", headers=_token(admin))
+        assert len(resp.json()) == 2
+
+    def test_admin_reviews_invalid_user_id_returns_empty(self, client: TestClient, db: Session):
+        admin = _create_admin(db)
+        resp = client.get("/api/v1/admin/reviews?user_id=99999", headers=_token(admin))
+        assert resp.json() == []

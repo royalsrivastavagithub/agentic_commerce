@@ -284,6 +284,24 @@ class TestUpdateReview:
         assert resp.json()["comment"] == ""
 
 
+class TestEmptyUpdateBody:
+    def test_update_with_empty_body_returns_200(self, client: TestClient, db: Session):
+        _, headers, product = _setup(db)
+        created = client.post(
+            f"/api/v1/products/{product.id}/reviews",
+            json={"rating": 4, "comment": "Good"},
+            headers=headers,
+        ).json()
+        resp = client.put(
+            f"/api/v1/reviews/{created['id']}",
+            json={},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["rating"] == 4
+        assert resp.json()["comment"] == "Good"
+
+
 class TestDeleteReview:
     def test_delete_own_review(self, client: TestClient, db: Session):
         _, headers, product = _setup(db)
