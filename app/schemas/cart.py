@@ -41,3 +41,16 @@ class CartResponse(BaseModel):
     total: float = 0
     created_at: datetime
     updated_at: datetime
+
+
+class SavedItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    product_id: int
+    saved_at: datetime
+    product: CartProductInfo
+
+
+class SaveCartItemRequest(BaseModel):
+    cart_item_id: int

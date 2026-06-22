@@ -4,13 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models.cart import Cart, CartItem
+from app.models.cart import Cart, CartItem, SavedItem
 from app.models.product import Product
 from app.schemas.cart import (
     CartItemCreate,
     CartItemUpdate,
     CartItemResponse,
     CartResponse,
+    SaveCartItemRequest,
+    SavedItemResponse,
 )
 from app.api.deps import get_current_user
 from app.models.user import User
@@ -142,6 +144,114 @@ def clear_cart(
     if cart:
         cart.items = []
         db.commit()
+
+
+@router.get("/saved", response_model=list[SavedItemResponse], summary="List saved-for-later items")
+def list_saved_items(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    items = (
+        db.query(SavedItem)
+        .filter(SavedItem.user_id == current_user.id)
+        .order_by(SavedItem.saved_at.desc())
+        .all()
+    )
+    return items
+
+
+@router.post("/saved", response_model=SavedItemResponse, status_code=status.HTTP_201_CREATED, summary="Move cart item to saved for later")
+def save_cart_item(
+    req: SaveCartItemRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    cart_item = _get_cart_item(req.cart_item_id, current_user.id, db)
+
+    existing_saved = (
+        db.query(SavedItem)
+        .filter(SavedItem.user_id == current_user.id, SavedItem.product_id == cart_item.product_id)
+        .first()
+    )
+    if existing_saved:
+        db.delete(cart_item)
+        db.commit()
+        return existing_saved
+
+    saved = SavedItem(user_id=current_user.id, product_id=cart_item.product_id)
+    db.add(saved)
+    db.delete(cart_item)
+    db.commit()
+    db.refresh(saved)
+    return saved
+
+
+@router.post("/saved/{saved_id}/move-to-cart", response_model=CartItemResponse, summary="Move saved item back to cart")
+def move_saved_to_cart(
+    saved_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    saved = (
+        db.query(SavedItem)
+        .filter(SavedItem.id == saved_id, SavedItem.user_id == current_user.id)
+        .first()
+    )
+    if not saved:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved item not found")
+
+    product = db.query(Product).filter(Product.id == saved.product_id).first()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    cart = _get_or_create_cart(current_user.id, db)
+
+    existing = (
+        db.query(CartItem)
+        .filter(CartItem.cart_id == cart.id, CartItem.product_id == saved.product_id)
+        .first()
+    )
+    if existing:
+        if existing.quantity + 1 > product.stock:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Only {product.stock} units available (already have {existing.quantity})",
+            )
+        existing.quantity += 1
+        db.delete(saved)
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    if 1 > product.stock:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Product is out of stock",
+        )
+
+    cart_item = CartItem(cart_id=cart.id, product_id=saved.product_id, quantity=1)
+    db.add(cart_item)
+    db.delete(saved)
+    db.commit()
+    db.refresh(cart_item)
+    return cart_item
+
+
+@router.delete("/saved/{saved_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove saved item")
+def remove_saved_item(
+    saved_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    saved = (
+        db.query(SavedItem)
+        .filter(SavedItem.id == saved_id, SavedItem.user_id == current_user.id)
+        .first()
+    )
+    if not saved:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved item not found")
+    db.delete(saved)
+    db.commit()
 
 
 def _get_cart_item(item_id: int, user_id: int, db: Session) -> CartItem:

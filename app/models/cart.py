@@ -32,3 +32,19 @@ class CartItem(Base):
 
     cart = relationship("Cart", back_populates="items")
     product = relationship("Product", lazy="joined")
+
+
+class SavedItem(Base):
+    __tablename__ = "saved_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    saved_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "product_id", name="uq_user_saved_product"),
+    )
+
+    user = relationship("User", back_populates="saved_items")
+    product = relationship("Product", lazy="joined")
