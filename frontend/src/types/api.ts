@@ -8,6 +8,8 @@ export interface User {
   gender?: string
   role: string
   is_active: boolean
+  is_verified?: boolean
+  addresses?: Address[]
 }
 
 export interface LoginResponse {

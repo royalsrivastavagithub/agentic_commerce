@@ -8,6 +8,7 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Star } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
+import { Slider } from "@/components/ui/slider"
 import {
   Pagination,
   PaginationContent,
@@ -65,7 +66,7 @@ export default function ProductsContent() {
     setMinRating(0)
   }
 
-  const hasFilters = category !== "all" || sort !== "default" || minPrice || maxPrice || minRating > 0
+  const hasFilters = category !== "all" || sort !== "default" || (minPrice !== "" && minPrice !== "0") || (maxPrice !== "" && maxPrice !== "2000") || minRating > 0
 
   const skip = (page - 1) * LIMIT
   const activeCategory = searchFromUrl ? "all" : category
@@ -129,11 +130,11 @@ export default function ProductsContent() {
             <div className="space-y-5">
               {/* Sort */}
               <div>
-                <h3 className="mb-1.5 text-sm font-bold text-gray-900">Sort by</h3>
+                <h3 className="mb-1.5 text-sm font-bold text-foreground">Sort by</h3>
                 <select
                   value={sort}
                   onChange={(e) => { setSort(e.target.value); setPage(1) }}
-                  className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-amazon-link"
+                  className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card dark:text-foreground"
                 >
                   <option value="default">Default</option>
                   <option value="price-asc">Price: Low to High</option>
@@ -142,31 +143,28 @@ export default function ProductsContent() {
                 </select>
               </div>
 
-              {/* Price range */}
+              {/* Price range slider */}
               <div>
-                <h3 className="mb-1.5 text-sm font-bold text-gray-900">Price Range</h3>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    placeholder="Min"
-                    value={minPrice}
-                    onChange={(e) => setMinPrice(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-amazon-link"
+                <h3 className="mb-1.5 text-sm font-bold text-foreground">Price Range</h3>
+                <div className="space-y-2 pt-1">
+                  <Slider
+                    value={[parseInt(minPrice || "0"), parseInt(maxPrice || "2000")]}
+                    onValueChange={([min, max]) => {
+                      setMinPrice(min.toString())
+                      setMaxPrice(max.toString())
+                    }}
+                    min={0} max={2000} step={10}
                   />
-                  <span className="text-xs text-gray-400">to</span>
-                  <input
-                    type="number"
-                    placeholder="Max"
-                    value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-amazon-link"
-                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>₹{minPrice || "0"}</span>
+                    <span>₹{maxPrice || "2000"}</span>
+                  </div>
                 </div>
               </div>
 
               {/* Rating filter */}
               <div>
-                <h3 className="mb-1.5 text-sm font-bold text-gray-900">Min. Rating</h3>
+                <h3 className="mb-1.5 text-sm font-bold text-foreground">Min. Rating</h3>
                 <div className="space-y-1">
                   {[4, 3, 2, 1].map((r) => (
                     <button
@@ -290,7 +288,7 @@ function ProductCard({ product }: { product: Product }) {
 
       <div className="flex flex-1 flex-col justify-between py-1">
         <div>
-          <h3 className="line-clamp-1 text-sm font-medium text-amazon-link group-hover:underline sm:text-base">
+          <h3 className="line-clamp-1 text-sm font-medium text-foreground group-hover:text-amazon-link sm:text-base">
             {product.title}
           </h3>
 

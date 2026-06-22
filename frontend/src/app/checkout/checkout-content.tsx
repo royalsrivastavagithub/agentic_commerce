@@ -9,6 +9,7 @@ import { useState, useEffect } from "react"
 import { ArrowLeft, MapPin, Plus } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 import { toast } from "sonner"
+import { INDIA_LOCATIONS, INDIA_STATES } from "@/lib/india-locations"
 
 interface NewAddress {
   label: string
@@ -175,10 +176,19 @@ function CheckoutInner() {
               <div className="grid grid-cols-2 gap-3">
                 <input placeholder="Label (Home/Work)" value={newAddr.label} onChange={(e) => setNewAddr({ ...newAddr, label: e.target.value })} className="col-span-2 rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
                 <input placeholder="Street address" value={newAddr.street} onChange={(e) => setNewAddr({ ...newAddr, street: e.target.value })} className="col-span-2 rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
-                <input placeholder="City" value={newAddr.city} onChange={(e) => setNewAddr({ ...newAddr, city: e.target.value })} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
-                <input placeholder="State" value={newAddr.state} onChange={(e) => setNewAddr({ ...newAddr, state: e.target.value })} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
-                <input placeholder="Pincode" value={newAddr.pincode} onChange={(e) => setNewAddr({ ...newAddr, pincode: e.target.value })} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
-                <input placeholder="Country" value={newAddr.country} onChange={(e) => setNewAddr({ ...newAddr, country: e.target.value })} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+                <select value={newAddr.city} onChange={(e) => setNewAddr({ ...newAddr, city: e.target.value })} disabled={!newAddr.state} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card disabled:opacity-50 disabled:cursor-not-allowed">
+                  <option value="">{newAddr.state ? "Select city" : "Select state first"}</option>
+                  {newAddr.state && INDIA_LOCATIONS[newAddr.state]?.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <select value={newAddr.state} onChange={(e) => { setNewAddr({ ...newAddr, state: e.target.value, city: '' }) }} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card">
+                  <option value="">State</option>
+                  {INDIA_STATES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <input placeholder="Pincode" inputMode="numeric" pattern="[0-9]{6}" value={newAddr.pincode} onChange={(e) => setNewAddr({ ...newAddr, pincode: e.target.value.replace(/\D/g, '') })} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
               </div>
               <button
                 type="button"

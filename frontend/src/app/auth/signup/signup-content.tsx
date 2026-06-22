@@ -12,7 +12,10 @@ import { toast } from "sonner"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 
 export default function SignupContent() {
-  const [form, setForm] = useState({ email: "", password: "", first_name: "", last_name: "" })
+  const [form, setForm] = useState({
+    email: "", password: "", first_name: "", last_name: "",
+    phone: "", date_of_birth: "", gender: "",
+  })
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
 
@@ -88,6 +91,40 @@ export default function SignupContent() {
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+91 9876543210"
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dob">Date of Birth</Label>
+                  <Input
+                    id="dob"
+                    type="date"
+                    value={form.date_of_birth}
+                    onChange={(e) => setForm((f) => ({ ...f, date_of_birth: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <select
+                    id="gender"
+                    value={form.gender}
+                    onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-amazon-link"
+                  >
+                    <option value="">Prefer not to say</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>

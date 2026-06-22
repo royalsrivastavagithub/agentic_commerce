@@ -87,7 +87,7 @@ function FeaturedCard({ product }: { product: Product }) {
       </div>
       <div className="flex flex-1 flex-col justify-between py-1">
         <div>
-          <h3 className="line-clamp-1 text-base font-medium text-amazon-link group-hover:underline sm:text-lg">
+          <h3 className="line-clamp-1 text-base font-medium text-foreground group-hover:text-amazon-link sm:text-lg">
             {product.title}
           </h3>
           <p className="mt-1 line-clamp-1 text-sm text-muted-foreground sm:line-clamp-2">

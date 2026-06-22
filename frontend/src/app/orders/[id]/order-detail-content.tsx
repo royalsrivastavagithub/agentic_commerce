@@ -99,18 +99,18 @@ function OrderDetailInner() {
           </div>
           <div className="divide-y">
             {order.items.map((item) => (
-              <div key={item.id} className="flex items-center gap-4 px-4 py-3">
+              <Link key={item.id} href={`/products/${item.product_id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-muted/50">
                 {item.thumbnail && (
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
                     <img src={item.thumbnail} alt={item.product_name} className="h-full w-full object-cover" />
                   </div>
                 )}
                 <div className="flex-1">
-                  <p className="text-sm font-medium">{item.product_name}</p>
+                  <p className="text-sm font-medium text-foreground hover:text-amazon-link hover:underline">{item.product_name}</p>
                   <p className="text-xs text-muted-foreground">Qty: {item.quantity} × ₹{item.product_price.toFixed(2)}</p>
                 </div>
                 <p className="text-sm font-semibold">₹{item.subtotal.toFixed(2)}</p>
-              </div>
+              </Link>
             ))}
           </div>
           <div className="border-t px-4 py-3">

@@ -99,7 +99,7 @@ function WishlistInner() {
               </Link>
               <div className="flex flex-1 flex-col justify-between py-1">
                 <Link href={`/products/${item.product.id}`}>
-                  <h3 className="text-base font-medium text-amazon-link hover:underline">{item.product.title}</h3>
+                  <h3 className="text-base font-medium text-foreground hover:text-amazon-link hover:underline">{item.product.title}</h3>
                 </Link>
                 <p className="text-sm text-muted-foreground">{item.product.brand}</p>
                 <p className="text-lg font-bold">₹{item.product.price.toFixed(2)}</p>
