@@ -10,6 +10,110 @@ from app.core.security import create_access_token
 from tests.conftest import api_create_category, api_create_product, SAMPLE_PRODUCT
 
 
+class TestPriceRange:
+    def test_empty_db_returns_zero(self, client: TestClient):
+        resp = client.get("/api/v1/products/price-range")
+        assert resp.status_code == 200
+        assert resp.json() == {"min_price": 0, "max_price": 0}
+
+    def test_returns_min_and_max_price(self, client: TestClient, admin_token_headers):
+        api_create_product(client, {"sku": "PR-1", "price": 10.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "PR-2", "price": 5.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "PR-3", "price": 99.99}, headers=admin_token_headers)
+
+        resp = client.get("/api/v1/products/price-range")
+        assert resp.status_code == 200
+        assert resp.json() == {"min_price": 5.0, "max_price": 99.99}
+
+
+class TestSortProducts:
+    def test_default_sort_by_id_asc(self, client: TestClient, admin_token_headers):
+        p1 = api_create_product(client, {"sku": "SRT-1"}, headers=admin_token_headers)
+        p2 = api_create_product(client, {"sku": "SRT-2"}, headers=admin_token_headers)
+        resp = client.get("/api/v1/products")
+        ids = [p["id"] for p in resp.json()["products"]]
+        assert ids == sorted(ids)
+
+    def test_sort_price_asc(self, client: TestClient, admin_token_headers):
+        api_create_product(client, {"sku": "SRT-P1", "price": 100.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "SRT-P2", "price": 50.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "SRT-P3", "price": 200.0}, headers=admin_token_headers)
+
+        resp = client.get("/api/v1/products?sort_by=price&sort_order=asc")
+        prices = [p["price"] for p in resp.json()["products"]]
+        assert prices == sorted(prices)
+
+    def test_sort_price_desc(self, client: TestClient, admin_token_headers):
+        api_create_product(client, {"sku": "SRT-P1", "price": 100.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "SRT-P2", "price": 50.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "SRT-P3", "price": 200.0}, headers=admin_token_headers)
+
+        resp = client.get("/api/v1/products?sort_by=price&sort_order=desc")
+        prices = [p["price"] for p in resp.json()["products"]]
+        assert prices == sorted(prices, reverse=True)
+
+    def test_sort_rating_desc(self, client: TestClient, admin_token_headers):
+        api_create_product(client, {"sku": "SRT-R1", "rating": 3.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "SRT-R2", "rating": 5.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "SRT-R3", "rating": 1.0}, headers=admin_token_headers)
+
+        resp = client.get("/api/v1/products?sort_by=rating&sort_order=desc")
+        ratings = [p["rating"] for p in resp.json()["products"]]
+        assert ratings == sorted(ratings, reverse=True)
+
+    def test_invalid_sort_by_returns_422(self, client: TestClient):
+        resp = client.get("/api/v1/products?sort_by=invalid")
+        assert resp.status_code == 422
+
+
+class TestPriceFilter:
+    def test_min_price(self, client: TestClient, admin_token_headers):
+        api_create_product(client, {"sku": "PF-1", "price": 10.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "PF-2", "price": 25.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "PF-3", "price": 50.0}, headers=admin_token_headers)
+
+        resp = client.get("/api/v1/products?min_price=20")
+        prices = [p["price"] for p in resp.json()["products"]]
+        assert all(p >= 20 for p in prices)
+
+    def test_max_price(self, client: TestClient, admin_token_headers):
+        api_create_product(client, {"sku": "PF-4", "price": 10.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "PF-5", "price": 25.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "PF-6", "price": 50.0}, headers=admin_token_headers)
+
+        resp = client.get("/api/v1/products?max_price=30")
+        prices = [p["price"] for p in resp.json()["products"]]
+        assert all(p <= 30 for p in prices)
+
+    def test_min_and_max_price(self, client: TestClient, admin_token_headers):
+        api_create_product(client, {"sku": "PF-7", "price": 10.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "PF-8", "price": 25.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "PF-9", "price": 50.0}, headers=admin_token_headers)
+
+        resp = client.get("/api/v1/products?min_price=15&max_price=40")
+        prices = [p["price"] for p in resp.json()["products"]]
+        assert all(15 <= p <= 40 for p in prices)
+
+    def test_negative_min_price_returns_422(self, client: TestClient):
+        resp = client.get("/api/v1/products?min_price=-1")
+        assert resp.status_code == 422
+
+
+class TestMinRating:
+    def test_filters_by_min_rating(self, client: TestClient, admin_token_headers):
+        api_create_product(client, {"sku": "MR-1", "rating": 5.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "MR-2", "rating": 3.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "MR-3", "rating": 4.0}, headers=admin_token_headers)
+
+        resp = client.get("/api/v1/products?min_rating=4")
+        ratings = [p["rating"] for p in resp.json()["products"]]
+        assert all(r >= 4 for r in ratings)
+        assert len(ratings) == 2
+
+    def test_rating_above_5_returns_422(self, client: TestClient):
+        resp = client.get("/api/v1/products?min_rating=6")
+        assert resp.status_code == 422
+
 class TestAuthzProductCRUD:
     def test_create_without_auth_returns_401(self, client: TestClient, admin_token_headers):
         cat = api_create_category(client, headers=admin_token_headers)

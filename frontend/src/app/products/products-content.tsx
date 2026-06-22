@@ -37,6 +37,14 @@ export default function ProductsContent() {
     queryFn: () => api.get<Category[]>("/categories"),
   })
 
+  const { data: priceRange } = useQuery({
+    queryKey: ["price-range"],
+    queryFn: () => api.get<{ min_price: number; max_price: number }>("/products/price-range"),
+  })
+
+  const priceMin = priceRange?.min_price ?? 0
+  const priceMax = priceRange?.max_price ?? 1000
+
   // Sync URL params into state (Next.js useSearchParams resolves async)
   useEffect(() => {
     if (categoryFromUrl) setCategory(categoryFromUrl)
@@ -66,55 +74,57 @@ export default function ProductsContent() {
     setMinRating(0)
   }
 
-  const hasFilters = category !== "all" || sort !== "default" || (minPrice !== "" && minPrice !== "0") || (maxPrice !== "" && maxPrice !== "2000") || minRating > 0
+  const hasFilters = category !== "all" || sort !== "default" || minRating > 0 ||
+    (minPrice !== "" && parseFloat(minPrice) > priceMin) ||
+    (maxPrice !== "" && parseFloat(maxPrice) < priceMax)
 
   const skip = (page - 1) * LIMIT
   const activeCategory = searchFromUrl ? "all" : category
   const catId = activeCategory !== "all" ? categoryIdMap.get(activeCategory) : undefined
   const productsQueryKey = searchFromUrl
-    ? ["products", "search", searchFromUrl, catId, page, minPrice, maxPrice, minRating]
-    : ["products", "list", skip, LIMIT, category, sort, minPrice, maxPrice, minRating]
+    ? ["products", "search", searchFromUrl, catId, page, minPrice, maxPrice, minRating, sort]
+    : ["products", "list", skip, LIMIT, category, sort, minPrice, maxPrice, minRating, priceMin, priceMax]
+
+  const buildSortParams = () => {
+    if (sort === "default") return ""
+    if (sort === "price-asc") return "&sort_by=price&sort_order=asc"
+    if (sort === "price-desc") return "&sort_by=price&sort_order=desc"
+    if (sort === "rating") return "&sort_by=rating&sort_order=desc"
+    return ""
+  }
+
+  const buildFilterParams = () => {
+    let s = ""
+    if (minPrice && parseFloat(minPrice) > priceMin) s += `&min_price=${parseFloat(minPrice)}`
+    if (maxPrice && parseFloat(maxPrice) < priceMax) s += `&max_price=${parseFloat(maxPrice)}`
+    if (minRating > 0) s += `&min_rating=${minRating}`
+    return s
+  }
 
   const { data: productsData, isLoading } = useQuery({
     queryKey: productsQueryKey,
     enabled: urlReady && (category === "all" || catId !== undefined),
     queryFn: () => {
+      const sortParams = buildSortParams()
+      const filterParams = buildFilterParams()
       if (searchFromUrl) {
         let url = `/products/search?q=${encodeURIComponent(searchFromUrl)}&skip=${skip}&limit=${LIMIT}`
         if (catId) url += `&category_id=${catId}`
+        url += sortParams
+        url += filterParams
         return api.get<ProductListResponse>(url)
       }
       if (catId) {
-        return api.get<ProductListResponse>(`/categories/${catId}/products?skip=${skip}&limit=${LIMIT}`)
+        return api.get<ProductListResponse>(`/categories/${catId}/products?skip=${skip}&limit=${LIMIT}${sortParams}${filterParams}`)
       }
-      return api.get<ProductListResponse>(`/products?skip=${skip}&limit=${LIMIT}`)
+      return api.get<ProductListResponse>(`/products?skip=${skip}&limit=${LIMIT}${sortParams}${filterParams}`)
     },
   })
 
   const allProducts = productsData?.products ?? []
   const total = productsData?.total ?? 0
 
-  const products = useMemo(() => {
-    let p = [...allProducts]
-
-    if (minPrice) {
-      const m = parseFloat(minPrice)
-      if (!isNaN(m)) p = p.filter((x) => (x.price * (1 - (x.discount_percentage || 0) / 100)) >= m)
-    }
-    if (maxPrice) {
-      const m = parseFloat(maxPrice)
-      if (!isNaN(m)) p = p.filter((x) => (x.price * (1 - (x.discount_percentage || 0) / 100)) <= m)
-    }
-    if (minRating > 0) {
-      p = p.filter((x) => x.rating >= minRating)
-    }
-
-    if (sort === "price-asc") p.sort((a, b) => a.price - b.price)
-    else if (sort === "price-desc") p.sort((a, b) => b.price - a.price)
-    else if (sort === "rating") p.sort((a, b) => b.rating - a.rating)
-
-    return p
-  }, [allProducts, minPrice, maxPrice, minRating, sort])
+  const products = allProducts
 
   const totalPages = Math.ceil(total / LIMIT)
   const displayProducts = products.slice(0, LIMIT)
@@ -148,16 +158,16 @@ export default function ProductsContent() {
                 <h3 className="mb-1.5 text-sm font-bold text-foreground">Price Range</h3>
                 <div className="space-y-2 pt-1">
                   <Slider
-                    value={[parseInt(minPrice || "0"), parseInt(maxPrice || "2000")]}
+                    value={[parseInt(minPrice || String(priceMin)), parseInt(maxPrice || String(priceMax))]}
                     onValueChange={([min, max]) => {
                       setMinPrice(min.toString())
                       setMaxPrice(max.toString())
                     }}
-                    min={0} max={2000} step={10}
+                    min={priceMin} max={priceMax} step={10}
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>₹{minPrice || "0"}</span>
-                    <span>₹{maxPrice || "2000"}</span>
+                    <span>₹{minPrice || priceMin}</span>
+                    <span>₹{maxPrice || priceMax}</span>
                   </div>
                 </div>
               </div>
