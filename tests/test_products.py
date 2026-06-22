@@ -756,6 +756,66 @@ class TestSearchEdgeCases:
         assert resp.json()["total"] == 1
 
 
+class TestFuzzySearch:
+    def test_search_typo_still_finds_product(self, client: TestClient, admin_token_headers):
+        _create_product(client, {"title": "iPhone 15 Pro Max", "sku": "FZY-001"}, headers=admin_token_headers)
+        resp = client.get("/api/v1/products/search?q=iphon")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] >= 1
+        assert "iPhone" in data["products"][0]["title"]
+
+    def test_search_typo_multiple_words(self, client: TestClient, admin_token_headers):
+        _create_product(client, {"title": "Wireless Bluetooth Headphones", "sku": "FZY-002"}, headers=admin_token_headers)
+        resp = client.get("/api/v1/products/search?q=wireles+blutooth")
+        assert resp.status_code == 200
+        assert resp.json()["total"] >= 1
+
+    def test_search_typo_short_word(self, client: TestClient, admin_token_headers):
+        _create_product(client, {"title": "Smartphone Pro", "sku": "FZY-003"}, headers=admin_token_headers)
+        resp = client.get("/api/v1/products/search?q=smarphone")
+        assert resp.status_code == 200
+        assert resp.json()["total"] >= 1
+
+    def test_search_brand_match(self, client: TestClient, admin_token_headers):
+        _create_product(client, {"title": "Running Shoes", "brand": "Nike", "sku": "FZY-004"}, headers=admin_token_headers)
+        resp = client.get("/api/v1/products/search?q=nkie")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] >= 1
+
+    def test_search_exact_ranks_higher_than_fuzzy(self, client: TestClient, admin_token_headers):
+        _create_product(client, {"title": "Samsung Galaxy S24", "sku": "FZY-005"}, headers=admin_token_headers)
+        _create_product(client, {"title": "Phone Case for Samsung", "sku": "FZY-006"}, headers=admin_token_headers)
+        resp = client.get("/api/v1/products/search?q=Samsung")
+        data = resp.json()
+        assert data["total"] >= 2
+        assert data["products"][0]["title"] == "Samsung Galaxy S24"
+
+    def test_search_no_match_returns_empty(self, client: TestClient, admin_token_headers):
+        _create_product(client, {"sku": "FZY-007"}, headers=admin_token_headers)
+        resp = client.get("/api/v1/products/search?q=zzzzzzzzzzzzzzz")
+        assert resp.status_code == 200
+        assert resp.json()["total"] == 0
+
+    def test_search_response_has_thumbnail_price_title(self, client: TestClient, admin_token_headers):
+        _create_product(client, {"sku": "FZY-008"}, headers=admin_token_headers)
+        resp = client.get("/api/v1/products/search?q=Test")
+        data = resp.json()
+        p = data["products"][0]
+        assert "thumbnail" in p
+        assert "price" in p
+        assert "title" in p
+
+    def test_search_pagination_with_fuzzy(self, client: TestClient, admin_token_headers):
+        for i in range(5):
+            _create_product(client, {"title": f"Product Alpha {i}", "sku": f"FZY-PAG-{i}"}, headers=admin_token_headers)
+        resp = client.get("/api/v1/products/search?q=Alpha&skip=0&limit=2")
+        data = resp.json()
+        assert len(data["products"]) == 2
+        assert data["total"] == 5
+
+
 class TestCategoryEdgeCases:
     def test_products_by_category_nonexistent_id(self, client: TestClient):
         resp = client.get("/api/v1/categories/99999/products")
