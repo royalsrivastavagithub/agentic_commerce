@@ -149,6 +149,14 @@ export interface DashboardSummary {
   orders_by_status: Record<string, number>
 }
 
+export interface CreatePaymentResponse {
+  order_id: number
+  razorpay_order_id: string
+  amount: number
+  currency: string
+  razorpay_key_id: string
+}
+
 export interface RevenuePoint {
   date: string
   revenue: number

@@ -36,6 +36,15 @@ export default function ProductDetailContent() {
     onError: (err: Error) => toast.error(err.message),
   })
 
+  const buyNow = useMutation({
+    mutationFn: () => api.post("/cart/items", { product_id: Number(id), quantity }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cart"] })
+      router.push("/checkout")
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
   const addToWishlist = useMutation({
     mutationFn: () => api.post("/wishlist", { product_id: Number(id) }),
     onSuccess: () => {
@@ -220,8 +229,8 @@ export default function ProductDetailContent() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => addToWishlist.mutate()}
-                      disabled={addToWishlist.isPending}
+                      onClick={() => buyNow.mutate()}
+                      disabled={buyNow.isPending}
                       className="w-full rounded-full bg-[#FFA41C] px-6 py-2 text-sm font-semibold text-black shadow-sm hover:brightness-95 disabled:opacity-50"
                     >
                       Buy Now
