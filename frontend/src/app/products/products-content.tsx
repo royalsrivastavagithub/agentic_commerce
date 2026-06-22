@@ -7,10 +7,7 @@ import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
-import { buttonVariants } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Star } from "lucide-react"
+import { Star, ChevronDown } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 import {
   Pagination,
@@ -26,8 +23,8 @@ const LIMIT = 12
 export default function ProductsContent() {
   const searchParams = useSearchParams()
   const searchFromUrl = searchParams.get("search") ?? ""
-  const [search, setSearch] = useState(searchFromUrl)
-  const [category, setCategory] = useState<string>("all")
+  const categoryFromUrl = searchParams.get("category") ?? ""
+  const [category, setCategory] = useState<string>(categoryFromUrl || "all")
   const [sort, setSort] = useState<string>("default")
   const [page, setPage] = useState(1)
 
@@ -43,22 +40,23 @@ export default function ProductsContent() {
   }, [categories])
 
   const resetFilters = () => {
-    setSearch("")
     setCategory("all")
     setSort("default")
     setPage(1)
   }
 
   const skip = (page - 1) * LIMIT
-  const productsQueryKey = search
-    ? ["products", "search", search, page]
+  const productsQueryKey = searchFromUrl
+    ? ["products", "search", searchFromUrl, page]
     : ["products", "list", skip, LIMIT, category, sort]
 
   const { data: productsData, isLoading } = useQuery({
     queryKey: productsQueryKey,
     queryFn: () => {
-      if (search) {
-        return api.get<ProductListResponse>(`/products/search?q=${encodeURIComponent(search)}&skip=${skip}&limit=${LIMIT}`)
+      if (searchFromUrl) {
+        return api.get<ProductListResponse>(
+          `/products/search?q=${encodeURIComponent(searchFromUrl)}&skip=${skip}&limit=${LIMIT}`,
+        )
       }
       if (category !== "all") {
         const catId = categoryIdMap.get(category)
@@ -80,124 +78,175 @@ export default function ProductsContent() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">
-            {search ? `Results for "${search}"` : "Products"}
-          </h1>
-          <p className="mt-1 text-muted-foreground">{total} products found</p>
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+        {/* Breadcrumb + Result count */}
+        <div className="mb-4">
+          <p className="text-sm text-muted-foreground">
+            {searchFromUrl ? (
+              <>
+                <Link href="/products" className="text-amazon-link hover:underline">
+                  All
+                </Link>
+                <span className="mx-1">›</span>
+                <span>Results for &quot;{searchFromUrl}&quot;</span>
+              </>
+            ) : (
+              <span>{total} results</span>
+            )}
+          </p>
         </div>
 
-        <div className="mb-6 flex flex-wrap items-center gap-4">
-          <div className="relative flex-1 sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && setPage(1)}
-              className="pl-9"
-            />
-          </div>
-
-          <Select
-            value={category}
-            onValueChange={(v) => {
-              if (v) setCategory(v)
-              setPage(1)
-            }}
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories?.map((c) => (
-                <SelectItem key={c.id} value={c.name}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={sort}
-            onValueChange={(v) => {
-              if (v) setSort(v)
-              setPage(1)
-            }}
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="default">Default</SelectItem>
-              <SelectItem value="price-asc">Price: Low to High</SelectItem>
-              <SelectItem value="price-desc">Price: High to Low</SelectItem>
-              <SelectItem value="rating">Top Rated</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {isLoading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="animate-pulse rounded-lg border bg-card">
-                <div className="aspect-square bg-muted" />
-                <div className="space-y-2 p-4">
-                  <div className="h-4 w-3/4 rounded bg-muted" />
-                  <div className="h-4 w-1/2 rounded bg-muted" />
+        <div className="flex gap-6">
+          {/* Left Sidebar — Amazon-style filters */}
+          <aside className="hidden w-56 shrink-0 md:block">
+            <div className="space-y-6">
+              {/* Category filter */}
+              <div>
+                <h3 className="mb-2 text-base font-bold">Category</h3>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => {
+                      setCategory("all")
+                      setPage(1)
+                    }}
+                    className={`w-full rounded px-2 py-1 text-left text-sm hover:bg-gray-100 ${
+                      category === "all" ? "font-bold text-amazon-link" : "text-gray-700"
+                    }`}
+                  >
+                    All Categories
+                  </button>
+                  {categories?.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => {
+                        setCategory(c.name)
+                        setPage(1)
+                      }}
+                      className={`w-full rounded px-2 py-1 text-left text-sm hover:bg-gray-100 ${
+                        category === c.name ? "font-bold text-amazon-link" : "text-gray-700"
+                      }`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        ) : products.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-lg text-muted-foreground">No products found</p>
-            <button onClick={resetFilters} className={buttonVariants({ variant: "link" })}>
-              Clear filters
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
 
-            {totalPages > 1 && (
-              <Pagination className="mt-8">
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      className={page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                    />
-                  </PaginationItem>
-                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                    const start = Math.max(1, page - 2)
-                    const p = start + i
-                    if (p > totalPages) return null
-                    return (
-                      <PaginationItem key={p}>
-                        <PaginationLink onClick={() => setPage(p)} isActive={p === page} className="cursor-pointer">
-                          {p}
-                        </PaginationLink>
+              {/* Sort */}
+              <div>
+                <h3 className="mb-2 text-base font-bold">Sort by</h3>
+                <select
+                  value={sort}
+                  onChange={(e) => {
+                    setSort(e.target.value)
+                    setPage(1)
+                  }}
+                  className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-amazon-link"
+                >
+                  <option value="default">Default</option>
+                  <option value="price-asc">Price: Low to High</option>
+                  <option value="price-desc">Price: High to Low</option>
+                  <option value="rating">Top Rated</option>
+                </select>
+              </div>
+
+              {/* Clear filters */}
+              {(category !== "all" || sort !== "default") && (
+                <button
+                  onClick={resetFilters}
+                  className="text-sm font-medium text-amazon-link hover:underline"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          </aside>
+
+          {/* Main content */}
+          <div className="flex-1">
+            {isLoading ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="aspect-square rounded-lg bg-gray-200" />
+                    <div className="mt-2 space-y-1.5">
+                      <div className="h-4 w-3/4 rounded bg-gray-200" />
+                      <div className="h-3 w-1/2 rounded bg-gray-200" />
+                      <div className="h-5 w-1/3 rounded bg-gray-200" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : products.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <p className="text-lg text-gray-600">No results found</p>
+                <p className="mt-1 text-sm text-muted-foreground">Try adjusting your search or filters</p>
+                <button onClick={resetFilters} className="mt-4 text-sm font-medium text-amazon-link hover:underline">
+                  Clear all filters
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Active filters summary */}
+                <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>
+                    1-{Math.min(products.length, LIMIT)} of {total} results
+                  </span>
+                  {category !== "all" && (
+                    <Badge variant="secondary" className="gap-1">
+                      {category}
+                      <button onClick={() => { setCategory("all"); setPage(1) }} className="ml-1 hover:text-foreground">
+                        ✕
+                      </button>
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Product grid */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+
+                {totalPages > 1 && (
+                  <Pagination className="mt-6">
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => setPage((p) => Math.max(1, p - 1))}
+                          className={page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
                       </PaginationItem>
-                    )
-                  })}
-                  <PaginationItem>
-                    <PaginationNext
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      className={page >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
+                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                        const start = Math.max(1, page - 2)
+                        const p = start + i
+                        if (p > totalPages) return null
+                        return (
+                          <PaginationItem key={p}>
+                            <PaginationLink
+                              onClick={() => setPage(p)}
+                              isActive={p === page}
+                              className="cursor-pointer"
+                            >
+                              {p}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      })}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                          className={page >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                )}
+              </>
             )}
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </Shell>
   )
@@ -207,41 +256,56 @@ function ProductCard({ product }: { product: Product }) {
   const discounted = product.price * (1 - (product.discount_percentage || 0) / 100)
 
   return (
-    <Link href={`/products/${product.id}`} className="group rounded-lg border bg-card transition-shadow hover:shadow-md">
-      <div className="aspect-square overflow-hidden rounded-t-lg bg-muted">
+    <Link
+      href={`/products/${product.id}`}
+      className="group rounded-lg border border-gray-200 bg-white p-3 transition-shadow hover:shadow-lg"
+    >
+      <div className="mb-2 flex items-center justify-center overflow-hidden rounded-md bg-white">
         <img
           src={product.thumbnail || "/placeholder.svg"}
           alt={product.title}
-          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+          className="h-48 w-full object-contain mix-blend-multiply transition-transform group-hover:scale-105"
         />
       </div>
-      <div className="p-4">
-        <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
-          {product.category && <span>{product.category}</span>}
+
+      <h3 className="line-clamp-2 text-sm font-medium text-amazon-link group-hover:underline">
+        {product.title}
+      </h3>
+
+      <div className="mt-1 flex items-center gap-1">
+        <div className="flex">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Star
+              key={i}
+              className={`h-3 w-3 ${
+                i < Math.round(product.rating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+              }`}
+            />
+          ))}
         </div>
-        <h3 className="line-clamp-1 font-medium">{product.title}</h3>
-        <div className="mt-1 flex items-center gap-2">
-          <span className="text-lg font-bold">₹{discounted.toFixed(2)}</span>
-          {product.discount_percentage > 0 && (
-            <span className="text-sm text-muted-foreground line-through">₹{product.price.toFixed(2)}</span>
-          )}
-        </div>
-        <div className="mt-1 flex items-center gap-1 text-sm">
-          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-          <span>{product.rating.toFixed(1)}</span>
-          <span className="text-muted-foreground">({product.review_count})</span>
-        </div>
-        {product.stock <= 5 && product.stock > 0 && (
-          <Badge variant="destructive" className="mt-2">
-            Only {product.stock} left
-          </Badge>
+        <span className="text-xs text-muted-foreground">({product.review_count})</span>
+      </div>
+
+      <div className="mt-2">
+        {product.discount_percentage > 0 ? (
+          <div className="flex items-baseline gap-1">
+            <span className="text-lg font-bold">₹{discounted.toFixed(2)}</span>
+            <span className="text-xs text-muted-foreground line-through">₹{product.price.toFixed(2)}</span>
+          </div>
+        ) : (
+          <span className="text-lg font-bold">₹{product.price.toFixed(2)}</span>
         )}
-        {product.stock === 0 && (
-          <Badge variant="outline" className="mt-2 text-muted-foreground">
-            Out of stock
-          </Badge>
+        {product.discount_percentage > 0 && (
+          <span className="ml-1 text-xs text-green-700">({product.discount_percentage}% off)</span>
         )}
       </div>
+
+      {product.stock <= 5 && product.stock > 0 && (
+        <p className="mt-1 text-xs text-destructive">Only {product.stock} left in stock.</p>
+      )}
+      {product.stock === 0 && (
+        <p className="mt-1 text-xs text-muted-foreground">Out of stock</p>
+      )}
     </Link>
   )
 }
