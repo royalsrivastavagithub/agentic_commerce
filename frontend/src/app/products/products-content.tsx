@@ -284,7 +284,7 @@ function ProductCard({ product }: { product: Product }) {
         <img
           src={product.thumbnail || "/placeholder.svg"}
           alt={product.title}
-          className="h-full w-full object-contain mix-blend-multiply"
+          className="h-full w-full object-contain"
         />
       </div>
 
@@ -325,15 +325,12 @@ function ProductCard({ product }: { product: Product }) {
           <>
             <span className="text-lg font-bold sm:text-xl">₹{discounted.toFixed(2)}</span>
             <span className="text-xs text-muted-foreground line-through">₹{product.price.toFixed(2)}</span>
-            <span className="mt-1 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">
+            <span className="mt-1 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
               -{product.discount_percentage}%
             </span>
           </>
         ) : (
           <span className="text-lg font-bold sm:text-xl">₹{product.price.toFixed(2)}</span>
-        )}
-        {product.stock <= 5 && product.stock > 0 && (
-          <p className="mt-1 text-[10px] text-destructive">Only {product.stock} left</p>
         )}
       </div>
     </Link>

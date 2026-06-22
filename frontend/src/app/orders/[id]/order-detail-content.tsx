@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import { useAuthStore } from "@/stores/auth-store"
 import Link from "next/link"
 import { ArrowLeft, Package } from "lucide-react"
+import { useEffect } from "react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 import { toast } from "sonner"
 
@@ -13,10 +14,11 @@ export default function OrderDetailContent() {
   const { isAuthenticated } = useAuthStore()
   const router = useRouter()
 
-  if (!isAuthenticated) {
-    router.push("/auth/login")
-    return null
-  }
+  useEffect(() => {
+    if (!isAuthenticated) router.push("/auth/login")
+  }, [isAuthenticated, router])
+
+  if (!isAuthenticated) return null
 
   return <OrderDetailInner />
 }

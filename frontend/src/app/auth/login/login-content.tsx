@@ -39,7 +39,7 @@ export default function LoginContent() {
       const user = await userRes.json()
       login(data.access_token, user)
       toast.success("Logged in successfully")
-      router.push("/products")
+      router.push("/")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed")
     } finally {

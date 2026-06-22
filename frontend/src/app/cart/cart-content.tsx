@@ -11,17 +11,18 @@ import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft } from "lucide-react"
 import { useAuthStore } from "@/stores/auth-store"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 
 export default function CartContent() {
   const { isAuthenticated } = useAuthStore()
   const router = useRouter()
 
-  if (!isAuthenticated) {
-    router.push("/auth/login")
-    return null
-  }
+  useEffect(() => {
+    if (!isAuthenticated) router.push("/auth/login")
+  }, [isAuthenticated, router])
+
+  if (!isAuthenticated) return null
 
   return <CartInner />
 }
@@ -89,7 +90,7 @@ function CartInner() {
     <Shell>
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Shopping Cart ({items.length} items)</h1>
+          <h1 className="text-2xl font-bold">Shopping Cart ({items.length} {items.length === 1 ? "item" : "items"})</h1>
           <Button variant="outline" size="sm" onClick={() => clearCart.mutate()} disabled={clearCart.isPending}>
             <Trash2 className="mr-2 h-4 w-4" />
             Clear Cart

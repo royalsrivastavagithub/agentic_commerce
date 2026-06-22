@@ -120,7 +120,7 @@ export default function ProductDetailContent() {
               <img
                 src={product.images?.[selectedImage] || product.thumbnail || "/placeholder.svg"}
                 alt={product.title}
-                className="h-96 w-full object-contain mix-blend-multiply"
+                className="h-96 w-full object-contain"
               />
             </div>
             {product.images?.length > 1 && (
@@ -160,7 +160,6 @@ export default function ProductDetailContent() {
                 {product.review_count} ratings
               </span>
               <span className="text-xs text-muted-foreground">|</span>
-              <span className="text-sm text-muted-foreground">{product.sku && `SKU: ${product.sku}`}</span>
             </div>
 
             <div className="my-3 border-b" />
@@ -194,7 +193,7 @@ export default function ProductDetailContent() {
               {product.stock > 0 ? (
                 <span className="font-medium text-green-700 dark:text-green-500">In Stock</span>
               ) : (
-                <span className="font-medium text-destructive">Out of Stock</span>
+                <span className="font-medium text-destructive">Currently Unavailable</span>
               )}
             </p>
 
@@ -266,16 +265,14 @@ export default function ProductDetailContent() {
           </div>
         </div>
 
-        {/* Product details table */}
+        {/* Product details list */}
         <div className="mt-8 border-t pt-6">
           <h2 className="mb-4 text-xl font-bold">Product Details</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1">
             {[
               { label: "Brand", value: product.brand },
-              { label: "SKU", value: product.sku },
               { label: "Weight", value: `${product.weight} g` },
               { label: "Dimensions", value: `${product.dimensions.width} × ${product.dimensions.height} × ${product.dimensions.depth} cm` },
-              { label: "Stock", value: `${product.stock} units` },
               { label: "Min. Order", value: `${product.minimum_order_quantity}` },
               { label: "Availability", value: product.availability_status },
               { label: "Shipping", value: product.shipping_information },

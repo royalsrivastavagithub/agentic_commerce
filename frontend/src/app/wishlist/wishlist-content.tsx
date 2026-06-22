@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/auth-store"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Heart, ShoppingCart, Trash2 } from "lucide-react"
+import { useEffect } from "react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 import { toast } from "sonner"
 
@@ -13,10 +14,11 @@ export default function WishlistContent() {
   const { isAuthenticated } = useAuthStore()
   const router = useRouter()
 
-  if (!isAuthenticated) {
-    router.push("/auth/login")
-    return null
-  }
+  useEffect(() => {
+    if (!isAuthenticated) router.push("/auth/login")
+  }, [isAuthenticated, router])
+
+  if (!isAuthenticated) return null
 
   return <WishlistInner />
 }
@@ -92,7 +94,7 @@ function WishlistInner() {
                 <img
                   src={item.product.thumbnail || "/placeholder.svg"}
                   alt={item.product.title}
-                  className="h-full w-full object-contain mix-blend-multiply"
+                  className="h-full w-full object-contain"
                 />
               </Link>
               <div className="flex flex-1 flex-col justify-between py-1">

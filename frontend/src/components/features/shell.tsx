@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ShoppingCart, Search, Menu, LogOut, Package, Heart, Moon, Sun } from "lucide-react"
+import { ShoppingCart, Search, Menu, LogOut, Package, Heart, UserIcon, Moon, Sun } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -80,7 +80,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   const handleLogout = () => {
     logout()
-    router.push("/products")
+    router.push("/")
   }
 
   const handleCartClick = () => {
@@ -189,6 +189,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5 text-sm font-medium text-gray-500">{user?.email}</div>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push("/profile")}>
+                    <UserIcon className="mr-2 h-4 w-4" />
+                    Your Profile
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push("/orders")}>
                     <Package className="mr-2 h-4 w-4" />
                     Your Orders

@@ -82,7 +82,7 @@ function FeaturedCard({ product }: { product: Product }) {
         <img
           src={product.thumbnail || "/placeholder.svg"}
           alt={product.title}
-          className="h-full w-full object-contain mix-blend-multiply"
+          className="h-full w-full object-contain"
         />
       </div>
       <div className="flex flex-1 flex-col justify-between py-1">

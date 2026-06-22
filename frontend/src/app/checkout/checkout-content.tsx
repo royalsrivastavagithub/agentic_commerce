@@ -41,10 +41,11 @@ export default function CheckoutContent() {
   const { isAuthenticated } = useAuthStore()
   const router = useRouter()
 
-  if (!isAuthenticated) {
-    router.push("/auth/login")
-    return null
-  }
+  useEffect(() => {
+    if (!isAuthenticated) router.push("/auth/login")
+  }, [isAuthenticated, router])
+
+  if (!isAuthenticated) return null
 
   return <CheckoutInner />
 }
