@@ -157,7 +157,7 @@ class TestCreatePayment:
         assert data["razorpay_order_id"] == "rzp_test_order_123"
         assert data["amount"] == round(2 * product.price, 2)
         assert data["currency"] == "INR"
-        assert "order_id" in data
+        assert "order_id" not in data
 
     @patch("app.api.v1.endpoints.orders.create_razorpay_order")
     def test_create_payment_empty_cart_returns_400(self, mock_create_order, client: TestClient, db: Session):
@@ -283,13 +283,24 @@ class TestCreatePayment:
         address = _create_address(db, user.id)
         _add_to_cart(db, user.id, product.id, quantity=2)
 
-        resp = client.post(
+        client.post(
             "/api/v1/orders/create-payment",
             json={"address_id": address.id},
             headers=headers,
         )
-        assert resp.status_code == 201
-        order_id = resp.json()["order_id"]
+
+        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+            verify_resp = client.post(
+                "/api/v1/orders/verify-payment",
+                json={
+                    "razorpay_order_id": "rzp_test_order_123",
+                    "razorpay_payment_id": "rzp_pay_test_456",
+                    "razorpay_signature": "sig",
+                },
+                headers=headers,
+            )
+        assert verify_resp.status_code == 200
+        order_id = verify_resp.json()["id"]
 
         order_resp = client.get(f"/api/v1/orders/{order_id}", headers=headers)
         assert order_resp.status_code == 200
@@ -360,15 +371,24 @@ class TestCreatePayment:
         address = _create_address(db, user.id)
         _add_to_cart(db, user.id, product.id)
 
-        resp = client.post(
+        client.post(
             "/api/v1/orders/create-payment",
             json={"address_id": address.id},
             headers=headers,
         )
-        assert resp.status_code == 201
-        order_id = resp.json()["order_id"]
-        order_resp = client.get(f"/api/v1/orders/{order_id}", headers=headers)
-        assert order_resp.json()["shipping_name"] == "nameless@test.com"
+
+        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+            verify_resp = client.post(
+                "/api/v1/orders/verify-payment",
+                json={
+                    "razorpay_order_id": "rzp_test_order_nameless",
+                    "razorpay_payment_id": "rzp_pay_test_456",
+                    "razorpay_signature": "sig",
+                },
+                headers=headers,
+            )
+        assert verify_resp.status_code == 200
+        assert verify_resp.json()["shipping_name"] == "nameless@test.com"
 
 
 class TestVerifyPayment:
@@ -596,11 +616,8 @@ class TestVerifyPayment:
             headers=headers,
         )
 
-        order = db.query(Order).filter(Order.razorpay_order_id == "rzp_test_already_paid").first()
-        order.status = OrderStatus.PAID
-        db.commit()
-
-        resp = client.post(
+        # First verify succeeds
+        resp1 = client.post(
             "/api/v1/orders/verify-payment",
             json={
                 "razorpay_order_id": "rzp_test_already_paid",
@@ -609,8 +626,19 @@ class TestVerifyPayment:
             },
             headers=headers,
         )
-        assert resp.status_code == 400
-        assert "PENDING_PAYMENT" in resp.json()["detail"]
+        assert resp1.status_code == 200
+
+        # Second verify should fail (pending payment already consumed)
+        resp2 = client.post(
+            "/api/v1/orders/verify-payment",
+            json={
+                "razorpay_order_id": "rzp_test_already_paid",
+                "razorpay_payment_id": "rzp_pay_test_789",
+                "razorpay_signature": "sig",
+            },
+            headers=headers,
+        )
+        assert resp2.status_code == 404
 
     @patch("app.api.v1.endpoints.orders.verify_payment_signature")
     @patch("app.api.v1.endpoints.orders.create_razorpay_order")
@@ -685,8 +713,8 @@ class TestVerifyPayment:
             },
             headers=headers,
         )
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "PAID"
+        assert resp.status_code == 400
+        assert "empty" in resp.json()["detail"].lower()
 
 
 class TestListOrders:
@@ -700,20 +728,16 @@ class TestListOrders:
         p1 = _create_product(db, cat_id, {"sku": "LST-1"})
         addr1 = _create_address(db, user1.id)
         _add_to_cart(db, user1.id, p1.id)
-        client.post(
-            "/api/v1/orders/create-payment",
-            json={"address_id": addr1.id},
-            headers=_user_token(user1),
-        )
+        client.post("/api/v1/orders/create-payment", json={"address_id": addr1.id}, headers=_user_token(user1))
+        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+            client.post("/api/v1/orders/verify-payment", json={"razorpay_order_id": "rzp_test_order_123", "razorpay_payment_id": "rzp_pay", "razorpay_signature": "sig"}, headers=_user_token(user1))
 
         p2 = _create_product(db, cat_id, {"sku": "LST-2", "title": "P2"})
         addr2 = _create_address(db, user2.id)
         _add_to_cart(db, user2.id, p2.id)
-        client.post(
-            "/api/v1/orders/create-payment",
-            json={"address_id": addr2.id},
-            headers=_user_token(user2),
-        )
+        client.post("/api/v1/orders/create-payment", json={"address_id": addr2.id}, headers=_user_token(user2))
+        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+            client.post("/api/v1/orders/verify-payment", json={"razorpay_order_id": "rzp_test_order_123", "razorpay_payment_id": "rzp_pay", "razorpay_signature": "sig"}, headers=_user_token(user2))
 
         resp1 = client.get("/api/v1/orders", headers=_user_token(user1))
         assert len(resp1.json()) == 1
@@ -735,12 +759,15 @@ class TestListOrders:
 
         _add_to_cart(db, user.id, p1.id)
         client.post("/api/v1/orders/create-payment", json={"address_id": addr.id}, headers=headers)
-        # create-payment does not clear cart, so clear manually
-        db.query(CartItem).delete()
-        db.commit()
+        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+            resp1 = client.post("/api/v1/orders/verify-payment", json={"razorpay_order_id": "rzp_test_order_123", "razorpay_payment_id": "rzp_pay", "razorpay_signature": "sig"}, headers=headers)
+        order1_id = resp1.json()["id"]
 
         _add_to_cart(db, user.id, p2.id)
         client.post("/api/v1/orders/create-payment", json={"address_id": addr.id}, headers=headers)
+        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+            resp2 = client.post("/api/v1/orders/verify-payment", json={"razorpay_order_id": "rzp_test_order_123", "razorpay_payment_id": "rzp_pay", "razorpay_signature": "sig"}, headers=headers)
+        order2_id = resp2.json()["id"]
 
         orders = client.get("/api/v1/orders", headers=headers).json()
         assert len(orders) == 2
@@ -748,9 +775,11 @@ class TestListOrders:
 
 
 class TestGetOrder:
+    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
     @patch("app.api.v1.endpoints.orders.create_razorpay_order")
-    def test_get_own_order(self, mock_create_order, client: TestClient, db: Session):
+    def test_get_own_order(self, mock_create_order, mock_verify, client: TestClient, db: Session):
         mock_create_order.return_value = {"id": "rzp_test_order_123"}
+        mock_verify.return_value = True
         user = _create_user(db)
         headers = _user_token(user)
         cat_id = _create_category(db)
@@ -758,19 +787,23 @@ class TestGetOrder:
         address = _create_address(db, user.id)
         _add_to_cart(db, user.id, product.id)
 
-        created = client.post(
-            "/api/v1/orders/create-payment",
-            json={"address_id": address.id},
+        client.post("/api/v1/orders/create-payment", json={"address_id": address.id}, headers=headers)
+        verify_resp = client.post(
+            "/api/v1/orders/verify-payment",
+            json={"razorpay_order_id": "rzp_test_order_123", "razorpay_payment_id": "rzp_pay", "razorpay_signature": "sig"},
             headers=headers,
-        ).json()
+        )
+        order_id = verify_resp.json()["id"]
 
-        resp = client.get(f"/api/v1/orders/{created['order_id']}", headers=headers)
+        resp = client.get(f"/api/v1/orders/{order_id}", headers=headers)
         assert resp.status_code == 200
-        assert resp.json()["id"] == created["order_id"]
+        assert resp.json()["id"] == order_id
 
+    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
     @patch("app.api.v1.endpoints.orders.create_razorpay_order")
-    def test_get_other_users_order_returns_404(self, mock_create_order, client: TestClient, db: Session):
+    def test_get_other_users_order_returns_404(self, mock_create_order, mock_verify, client: TestClient, db: Session):
         mock_create_order.return_value = {"id": "rzp_test_order_123"}
+        mock_verify.return_value = True
         user1 = _create_user(db, "get1@test.com")
         user2 = _create_user(db, "get2@test.com")
         cat_id = _create_category(db)
@@ -779,110 +812,20 @@ class TestGetOrder:
         address = _create_address(db, user1.id)
         _add_to_cart(db, user1.id, product.id)
 
-        created = client.post(
-            "/api/v1/orders/create-payment",
-            json={"address_id": address.id},
+        client.post("/api/v1/orders/create-payment", json={"address_id": address.id}, headers=_user_token(user1))
+        verify_resp = client.post(
+            "/api/v1/orders/verify-payment",
+            json={"razorpay_order_id": "rzp_test_order_123", "razorpay_payment_id": "rzp_pay", "razorpay_signature": "sig"},
             headers=_user_token(user1),
-        ).json()
-
-        resp = client.get(
-            f"/api/v1/orders/{created['order_id']}",
-            headers=_user_token(user2),
         )
+        order_id = verify_resp.json()["id"]
+
+        resp = client.get(f"/api/v1/orders/{order_id}", headers=_user_token(user2))
         assert resp.status_code == 404
 
     def test_get_nonexistent_order_returns_404(self, client: TestClient, db: Session):
         user = _create_user(db)
         resp = client.get("/api/v1/orders/99999", headers=_user_token(user))
-        assert resp.status_code == 404
-
-
-class TestCancelOrder:
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
-    def test_cancel_pending_payment_order(self, mock_create_order, client: TestClient, db: Session):
-        mock_create_order.return_value = {"id": "rzp_test_order_123"}
-        user = _create_user(db)
-        headers = _user_token(user)
-        cat_id = _create_category(db)
-        product = _create_product(db, cat_id)
-        address = _create_address(db, user.id)
-        _add_to_cart(db, user.id, product.id)
-
-        created = client.post(
-            "/api/v1/orders/create-payment",
-            json={"address_id": address.id},
-            headers=headers,
-        ).json()
-
-        resp = client.put(
-            f"/api/v1/orders/{created['order_id']}/cancel",
-            headers=headers,
-        )
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "CANCELLED"
-
-    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
-    def test_cancel_paid_order_returns_400(
-        self, mock_create_order, mock_verify, client: TestClient, db: Session
-    ):
-        mock_create_order.return_value = {"id": "rzp_test_order_123"}
-        mock_verify.return_value = True
-
-        user = _create_user(db)
-        headers = _user_token(user)
-        cat_id = _create_category(db)
-        product = _create_product(db, cat_id)
-        address = _create_address(db, user.id)
-        _add_to_cart(db, user.id, product.id)
-
-        created = client.post(
-            "/api/v1/orders/create-payment",
-            json={"address_id": address.id},
-            headers=headers,
-        ).json()
-
-        client.post(
-            "/api/v1/orders/verify-payment",
-            json={
-                "razorpay_order_id": "rzp_test_order_123",
-                "razorpay_payment_id": "rzp_pay_test_456",
-                "razorpay_signature": "sig",
-            },
-            headers=headers,
-        )
-
-        resp = client.put(
-            f"/api/v1/orders/{created['order_id']}/cancel",
-            headers=headers,
-        )
-        assert resp.status_code == 400
-
-    def test_cancel_nonexistent_order_returns_404(self, client: TestClient, db: Session):
-        user = _create_user(db)
-        resp = client.put("/api/v1/orders/99999/cancel", headers=_user_token(user))
-        assert resp.status_code == 404
-
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
-    def test_cancel_other_users_order_returns_404(self, mock_create_order, client: TestClient, db: Session):
-        mock_create_order.return_value = {"id": "rzp_test_order_123"}
-        user1 = _create_user(db, "cancel1@test.com")
-        user2 = _create_user(db, "cancel2@test.com")
-        cat_id = _create_category(db)
-        product = _create_product(db, cat_id)
-        address = _create_address(db, user1.id)
-        _add_to_cart(db, user1.id, product.id)
-
-        created = client.post(
-            "/api/v1/orders/create-payment",
-            json={"address_id": address.id},
-            headers=_user_token(user1),
-        ).json()
-
-        resp = client.put(
-            f"/api/v1/orders/{created['order_id']}/cancel",
-            headers=_user_token(user2),
-        )
         assert resp.status_code == 404
 
 

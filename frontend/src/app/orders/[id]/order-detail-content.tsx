@@ -1,5 +1,5 @@
 "use client"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import type { Order } from "@/types/api"
 import { useParams, useRouter } from "next/navigation"
@@ -8,7 +8,6 @@ import Link from "next/link"
 import { ArrowLeft, Package } from "lucide-react"
 import { useEffect } from "react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
-import { toast } from "sonner"
 
 export default function OrderDetailContent() {
   const { isAuthenticated } = useAuthStore()
@@ -25,21 +24,11 @@ export default function OrderDetailContent() {
 
 function OrderDetailInner() {
   const { id } = useParams<{ id: string }>()
-  const queryClient = useQueryClient()
   const router = useRouter()
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["order", id],
     queryFn: () => api.get<Order>(`/orders/${id}`),
-  })
-
-  const cancelOrder = useMutation({
-    mutationFn: () => api.put(`/orders/${id}/cancel`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["order", id] })
-      queryClient.invalidateQueries({ queryKey: ["orders"] })
-      toast.success("Order cancelled")
-    },
   })
 
   const statusColors: Record<string, string> = {
@@ -136,17 +125,6 @@ function OrderDetailInner() {
             <p className="text-muted-foreground">Payment Status: <span className="font-medium text-foreground capitalize">{order.payment_status || "Pending"}</span></p>
             {order.razorpay_payment_id && <p className="text-muted-foreground">Payment ID: {order.razorpay_payment_id}</p>}
           </div>
-        )}
-
-        {order.status === "pending" && (
-          <button
-            type="button"
-            onClick={() => cancelOrder.mutate()}
-            disabled={cancelOrder.isPending}
-            className="rounded-lg border border-destructive px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/5 disabled:opacity-50"
-          >
-            Cancel Order
-          </button>
         )}
       </div>
     </Shell>

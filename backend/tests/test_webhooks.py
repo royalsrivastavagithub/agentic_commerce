@@ -10,6 +10,7 @@ from app.models.cart import Cart, CartItem
 from app.models.user import User
 from app.models.address import Address
 from app.models.category import Category
+from app.models.pending_payment import PendingPayment
 from app.core.security import create_access_token, get_password_hash
 from tests.conftest import TestingSessionLocal
 
@@ -100,25 +101,16 @@ def _add_to_cart(db: Session, user_id: int, product_id: int, quantity: int = 2):
     db.commit()
 
 
-def _create_pending_order(db: Session, user_id: int, product_id: int,
-                          razorpay_order_id: str = "rzp_test_wh_001") -> Order:
-    order = Order(
-        user_id=user_id, status=OrderStatus.PENDING_PAYMENT,
-        shipping_name="Test", shipping_phone="123",
-        shipping_address_line_1="Addr", shipping_city="City",
-        shipping_state="State", shipping_country="India", shipping_pincode="400001",
-        subtotal=59.98, total=59.98, razorpay_order_id=razorpay_order_id,
+def _create_pending_payment(db: Session, user_id: int, address_id: int,
+                            razorpay_order_id: str = "rzp_test_wh_001", amount: float = 59.98) -> PendingPayment:
+    pp = PendingPayment(
+        user_id=user_id, address_id=address_id,
+        razorpay_order_id=razorpay_order_id, amount=amount,
     )
-    db.add(order)
-    db.flush()
-    from app.models.order import OrderItem
-    item = OrderItem(order_id=order.id, product_id=product_id,
-                     product_name="Webhook Test Product", product_price=29.99,
-                     quantity=2, subtotal=59.98)
-    db.add(item)
+    db.add(pp)
     db.commit()
-    db.refresh(order)
-    return order
+    db.refresh(pp)
+    return pp
 
 
 def _user_token(db: Session, user: User) -> dict:
@@ -188,16 +180,20 @@ class TestWebhookRazorpay:
             client.post("/api/v1/orders/create-payment",
                         json={"address_id": address.id}, headers=_user_token(db, user))
 
-        order = db.query(Order).filter(Order.razorpay_order_id == "rzp_test_already_paid").first()
-        order.status = OrderStatus.PAID
-        db.commit()
+        # Process payment via verify-payment to create PAID order
+        from app.api.v1.endpoints.orders import verify_payment_signature
+        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+            client.post("/api/v1/orders/verify-payment",
+                        json={"razorpay_order_id": "rzp_test_already_paid",
+                              "razorpay_payment_id": "rzp_pay", "razorpay_signature": "sig"},
+                        headers=_user_token(db, user))
 
         payload = self._webhook_payload(order_id="rzp_test_already_paid")
         resp = client.post("/api/v1/webhooks/razorpay", content=payload,
                            headers={"x-razorpay-signature": "sig"})
         assert resp.status_code == 200
         assert resp.json()["status"] == "ignored"
-        assert "order_status_PAID" in resp.json()["reason"]
+        assert "order_already_paid" in resp.json()["reason"]
 
     @patch("app.api.v1.endpoints.webhooks.verify_webhook_signature")
     @patch("app.api.v1.endpoints.webhooks.SessionLocal")
@@ -209,7 +205,9 @@ class TestWebhookRazorpay:
         user = _create_user(db)
         cat_id = _create_category(db)
         product = _create_product(db, cat_id, {"stock": 10})
-        _create_pending_order(db, user.id, product.id, razorpay_order_id="rzp_test_wh_success")
+        address = _create_address(db, user.id)
+        _add_to_cart(db, user.id, product.id, quantity=2)
+        _create_pending_payment(db, user.id, address.id, razorpay_order_id="rzp_test_wh_success")
 
         payload = self._webhook_payload(order_id="rzp_test_wh_success", payment_id="rzp_pay_wh_001")
         resp = client.post("/api/v1/webhooks/razorpay", content=payload,
@@ -217,8 +215,8 @@ class TestWebhookRazorpay:
         assert resp.status_code == 200
         assert resp.json() == {"status": "ok"}
 
-        db.expire_all()
         order = db.query(Order).filter(Order.razorpay_order_id == "rzp_test_wh_success").first()
+        assert order is not None
         assert order.status == OrderStatus.PAID
         assert order.razorpay_payment_id == "rzp_pay_wh_001"
         assert order.payment_status == "paid"
@@ -233,7 +231,9 @@ class TestWebhookRazorpay:
         user = _create_user(db)
         cat_id = _create_category(db)
         product = _create_product(db, cat_id, {"stock": 10})
-        _create_pending_order(db, user.id, product.id, razorpay_order_id="rzp_test_wh_stock")
+        address = _create_address(db, user.id)
+        _add_to_cart(db, user.id, product.id, quantity=2)
+        _create_pending_payment(db, user.id, address.id, razorpay_order_id="rzp_test_wh_stock")
 
         old_stock = product.stock
         payload = self._webhook_payload(order_id="rzp_test_wh_stock")
@@ -253,8 +253,9 @@ class TestWebhookRazorpay:
         user = _create_user(db)
         cat_id = _create_category(db)
         product = _create_product(db, cat_id)
+        address = _create_address(db, user.id)
         _add_to_cart(db, user.id, product.id)
-        _create_pending_order(db, user.id, product.id, razorpay_order_id="rzp_test_wh_cart")
+        _create_pending_payment(db, user.id, address.id, razorpay_order_id="rzp_test_wh_cart")
 
         payload = self._webhook_payload(order_id="rzp_test_wh_cart")
         client.post("/api/v1/webhooks/razorpay", content=payload,
@@ -274,7 +275,9 @@ class TestWebhookRazorpay:
         user = _create_user(db)
         cat_id = _create_category(db)
         product = _create_product(db, cat_id, {"stock": 1})
-        _create_pending_order(db, user.id, product.id, razorpay_order_id="rzp_test_wh_lowstock")
+        address = _create_address(db, user.id)
+        _add_to_cart(db, user.id, product.id, quantity=2)
+        _create_pending_payment(db, user.id, address.id, razorpay_order_id="rzp_test_wh_lowstock")
 
         payload = self._webhook_payload(order_id="rzp_test_wh_lowstock")
         client.post("/api/v1/webhooks/razorpay", content=payload,

@@ -8,7 +8,6 @@ from app.db.session import Base
 
 
 class OrderStatus(str, enum.Enum):
-    PENDING_PAYMENT = "PENDING_PAYMENT"
     PAID = "PAID"
     CONFIRMED = "CONFIRMED"
     SHIPPED = "SHIPPED"
@@ -21,7 +20,7 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING_PAYMENT, nullable=False)
+    status = Column(Enum(OrderStatus), default=OrderStatus.PAID, nullable=False)
     shipping_name = Column(String, nullable=False)
     shipping_phone = Column(String, nullable=False)
     shipping_address_line_1 = Column(String, nullable=False)

@@ -98,14 +98,14 @@ function CheckoutInner() {
         order_id: data.razorpay_order_id,
         handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
           try {
-            await api.post("/orders/verify-payment", {
+            const order = await api.post<{ id: number }>("/orders/verify-payment", {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             })
             queryClient.invalidateQueries({ queryKey: ["cart"] })
             toast.success("Payment successful!")
-            router.push(`/orders/${data.order_id}`)
+            router.push(`/orders/${order.id}`)
           } catch {
             toast.error("Payment verification failed")
           }

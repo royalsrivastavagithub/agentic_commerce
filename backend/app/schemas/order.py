@@ -15,11 +15,16 @@ class CreatePaymentRequest(BaseModel):
 
 
 class CreatePaymentResponse(BaseModel):
-    order_id: int
     razorpay_order_id: str
     amount: float
     currency: str = "INR"
     razorpay_key_id: str
+
+
+class VerifyPaymentResponse(BaseModel):
+    order_id: int
+    razorpay_order_id: str
+    razorpay_payment_id: str
 
 
 class VerifyPaymentRequest(BaseModel):
