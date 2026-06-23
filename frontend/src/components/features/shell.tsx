@@ -264,7 +264,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <div className="relative">
                 <ShoppingCart className="h-6 w-6 sm:h-7 sm:w-7" />
                 {cartCount > 0 && isAuthenticated && (
-                  <Badge className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amazon-accent p-0 text-[10px] font-bold text-amazon-nav sm:h-5 sm:w-5 sm:text-xs">
+                  <Badge className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-md bg-amazon-accent p-0 text-[10px] font-bold text-amazon-nav sm:h-5 sm:w-5 sm:text-xs">
                     {cartCount}
                   </Badge>
                 )}

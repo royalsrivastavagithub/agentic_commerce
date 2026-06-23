@@ -151,7 +151,7 @@ export default function DashboardContent() {
                           <TableCell>#{o.id}</TableCell>
                           <TableCell className="text-muted-foreground">{o.user_email}</TableCell>
                           <TableCell>
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${statusBadge[o.status] || "bg-gray-100 text-gray-800"}`}>
+                            <span className={`rounded-md px-2 py-0.5 text-xs font-medium capitalize ${statusBadge[o.status] || "bg-gray-100 text-gray-800"}`}>
                               {o.status.toLowerCase()}
                             </span>
                           </TableCell>

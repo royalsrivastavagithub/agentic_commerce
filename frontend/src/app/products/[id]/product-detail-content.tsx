@@ -238,7 +238,7 @@ export default function ProductDetailContent() {
                       type="button"
                       onClick={() => addToCart.mutate()}
                       disabled={addToCart.isPending}
-                      className="w-full rounded-full bg-[#FFD814] px-6 py-2 text-sm font-semibold text-black shadow-sm hover:brightness-95 disabled:opacity-50"
+                      className="w-full rounded-md bg-[#FFD814] px-6 py-2 text-sm font-semibold text-black shadow-sm hover:brightness-95 disabled:opacity-50"
                     >
                       Add to Cart
                     </button>
@@ -246,7 +246,7 @@ export default function ProductDetailContent() {
                       type="button"
                       onClick={() => buyNow.mutate()}
                       disabled={buyNow.isPending}
-                      className="w-full rounded-full bg-[#FFA41C] px-6 py-2 text-sm font-semibold text-black shadow-sm hover:brightness-95 disabled:opacity-50"
+                      className="w-full rounded-md bg-[#FFA41C] px-6 py-2 text-sm font-semibold text-black shadow-sm hover:brightness-95 disabled:opacity-50"
                     >
                       Buy Now
                     </button>
@@ -254,7 +254,7 @@ export default function ProductDetailContent() {
                       type="button"
                       onClick={() => wishlistItem ? removeFromWishlist.mutate() : addToWishlist.mutate()}
                       disabled={addToWishlist.isPending || removeFromWishlist.isPending}
-                      className="flex w-full items-center justify-center gap-2 rounded-full border border-gray-300 px-6 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted disabled:opacity-50 dark:border-border"
+                      className="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 px-6 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted disabled:opacity-50 dark:border-border"
                     >
                       <Heart className={`h-4 w-4 ${wishlistItem ? "fill-red-500 text-red-500" : ""}`} />
                       {removeFromWishlist.isPending ? "Removing..." : addToWishlist.isPending ? "Adding..." : wishlistItem ? "Remove from Wishlist" : "Add to Wishlist"}
@@ -263,7 +263,7 @@ export default function ProductDetailContent() {
                 ) : (
                   <Link
                     href="/auth/login"
-                    className={buttonVariants({ className: "w-full rounded-full bg-[#FFD814] text-black hover:brightness-95" })}
+                    className={buttonVariants({ className: "w-full rounded-md bg-[#FFD814] text-black hover:brightness-95" })}
                   >
                     Sign in to purchase
                   </Link>
@@ -405,14 +405,14 @@ export function ReviewSection({ productId }: { productId: number }) {
         <button
           type="submit"
           disabled={reviewMutation.isPending}
-          className="rounded-full bg-amazon-accent px-5 py-1.5 text-sm font-semibold text-amazon-nav hover:brightness-95 disabled:opacity-50"
+          className="rounded-md bg-amazon-accent px-5 py-1.5 text-sm font-semibold text-amazon-nav hover:brightness-95 disabled:opacity-50"
         >
           {reviewMutation.isPending ? "Submitting..." : "Submit Review"}
         </button>
         <button
           type="button"
           onClick={() => { setShowForm(false); setRating(0); setComment("") }}
-          className="rounded-full border px-5 py-1.5 text-sm font-medium hover:bg-muted dark:border-border"
+          className="rounded-md border px-5 py-1.5 text-sm font-medium hover:bg-muted dark:border-border"
         >
           Cancel
         </button>
@@ -464,7 +464,7 @@ export function ReviewSection({ productId }: { productId: number }) {
       {isAuthenticated && !alreadyReviewed && !showForm && (
         <button
           onClick={() => setShowForm(true)}
-          className="rounded-full bg-amazon-accent px-5 py-1.5 text-sm font-semibold text-amazon-nav hover:brightness-95"
+          className="rounded-md bg-amazon-accent px-5 py-1.5 text-sm font-semibold text-amazon-nav hover:brightness-95"
         >
           Write a Review
         </button>

@@ -84,7 +84,7 @@ export default function OrdersContent() {
                     <select
                       value={o.status}
                       onChange={(e) => statusMutation.mutate({ id: o.id, status: e.target.value })}
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize outline-none ${statusColors[o.status] || "bg-gray-100 text-gray-800"}`}
+                      className={`rounded-md px-2 py-0.5 text-xs font-medium capitalize outline-none ${statusColors[o.status] || "bg-gray-100 text-gray-800"}`}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {STATUSES.map((s) => <option key={s} value={s}>{s.toLowerCase()}</option>)}

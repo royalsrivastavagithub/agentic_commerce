@@ -97,7 +97,7 @@ function FeaturedCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="flex gap-4 rounded-lg border bg-white p-3 transition-shadow hover:shadow-lg dark:border-border dark:bg-card"
+      className="flex gap-4 rounded-lg border bg-white p-3 transition-shadow hover:shadow dark:border-border dark:bg-card"
     >
       <div className="h-32 w-32 shrink-0 overflow-hidden rounded-md bg-white sm:h-36 sm:w-36 dark:bg-card">
         <img
@@ -159,7 +159,7 @@ function MiniCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="w-40 shrink-0 snap-start rounded-lg border bg-white p-2 transition-shadow hover:shadow-lg dark:border-border dark:bg-card"
+      className="w-40 shrink-0 snap-start rounded-lg border bg-white p-2 transition-shadow hover:shadow dark:border-border dark:bg-card"
     >
       <div className="mb-2 h-28 overflow-hidden rounded-md bg-white">
         <img src={product.thumbnail || "/placeholder.svg"} alt={product.title} className="h-full w-full object-contain" />

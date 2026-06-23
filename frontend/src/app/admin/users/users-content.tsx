@@ -87,7 +87,7 @@ export default function UsersContent() {
                 <TableCell className="font-medium">{u.email}</TableCell>
                 <TableCell className="text-muted-foreground">{[u.first_name, u.last_name].filter(Boolean).join(" ") || "—"}</TableCell>
                 <TableCell>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${u.role === "admin" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800"}`}>
+                  <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${u.role === "admin" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800"}`}>
                     {u.role}
                   </span>
                 </TableCell>

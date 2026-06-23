@@ -52,7 +52,7 @@ function OrdersInner() {
           <p className="mb-8 text-muted-foreground">You haven&apos;t placed any orders yet.</p>
           <Link
             href="/products"
-            className="rounded-full bg-amazon-accent px-6 py-2 text-sm font-semibold text-amazon-nav hover:brightness-95"
+            className="rounded-md bg-amazon-accent px-6 py-2 text-sm font-semibold text-amazon-nav hover:brightness-95"
           >
             Start Shopping
           </Link>
@@ -70,7 +70,7 @@ function OrdersInner() {
             <Link
               key={order.id}
               href={`/orders/${order.id}`}
-              className="block rounded-lg border bg-white p-4 transition-shadow hover:shadow-md dark:border-border dark:bg-card"
+              className="block rounded-lg border bg-white p-4 transition-shadow hover:shadow dark:border-border dark:bg-card"
             >
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">

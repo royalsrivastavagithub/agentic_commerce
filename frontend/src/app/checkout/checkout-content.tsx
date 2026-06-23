@@ -260,7 +260,7 @@ function CheckoutInner() {
             type="button"
             onClick={() => createPayment.mutate()}
             disabled={createPayment.isPending || !selectedAddress || items.length === 0 || addrList.length === 0}
-            className="rounded-full bg-amazon-cart px-8 py-3 text-base font-semibold text-black shadow-sm hover:brightness-95 disabled:opacity-50"
+            className="rounded-md bg-amazon-cart px-8 py-3 text-base font-semibold text-black shadow-sm hover:brightness-95 disabled:opacity-50"
           >
             {createPayment.isPending ? "Processing..." : "Place Order"}
           </button>

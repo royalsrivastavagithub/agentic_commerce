@@ -71,7 +71,7 @@ function WishlistInner() {
           <p className="mb-8 text-muted-foreground">Your wishlist is empty.</p>
           <Link
             href="/products"
-            className="rounded-full bg-amazon-accent px-6 py-2 text-sm font-semibold text-amazon-nav hover:brightness-95"
+            className="rounded-md bg-amazon-accent px-6 py-2 text-sm font-semibold text-amazon-nav hover:brightness-95"
           >
             Browse Products
           </Link>

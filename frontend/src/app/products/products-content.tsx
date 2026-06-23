@@ -347,7 +347,7 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="flex gap-4 rounded-lg border border-gray-200 bg-white p-3 transition-shadow hover:shadow-lg dark:border-border dark:bg-card"
+      className="flex gap-4 rounded-lg border bg-white p-3 transition-shadow hover:shadow dark:border-border dark:bg-card"
     >
       <div className="h-28 w-28 shrink-0 overflow-hidden rounded-md bg-white sm:h-32 sm:w-32">
         <img
