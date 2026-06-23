@@ -11,11 +11,27 @@ router = APIRouter(tags=["products"])
 
 @router.get(
     "/products/price-range",
-    summary="Get min and max price across all products",
+    summary="Get min and max price across all products (optionally filtered)",
 )
-def get_price_range(db: Session = Depends(get_db)):
+def get_price_range(
+    q: str | None = Query(None, min_length=1),
+    category_id: int | None = Query(None),
+    min_discount: float | None = Query(None, ge=0, le=100),
+    db: Session = Depends(get_db),
+):
     from sqlalchemy import func
-    result = db.query(func.min(Product.price), func.max(Product.price)).first()
+    query = db.query(func.min(Product.price), func.max(Product.price))
+    if q:
+        safe_q = q.replace("%", "\\%").replace("_", "\\_")
+        query = query.filter(or_(
+            Product.title.ilike(f"%{safe_q}%", escape="\\"),
+            Product.brand.ilike(f"%{safe_q}%", escape="\\"),
+        ))
+    if category_id is not None:
+        query = query.filter(Product.category_id == category_id)
+    if min_discount is not None:
+        query = query.filter(Product.discount_percentage >= min_discount)
+    result = query.first()
     return {"min_price": result[0] or 0, "max_price": result[1] or 0}
 
 

@@ -45,13 +45,6 @@ export default function ProductsContent() {
     queryFn: () => api.get<Category[]>("/categories"),
   })
 
-  const { data: priceRange } = useQuery({
-    queryKey: ["price-range"],
-    queryFn: () => api.get<{ min_price: number; max_price: number }>("/products/price-range"),
-  })
-
-  const priceMin = priceRange?.min_price ?? 0
-  const priceMax = priceRange?.max_price ?? 1000
   const router = useRouter()
 
   // Sync URL params into state (Next.js useSearchParams resolves async)
@@ -105,12 +98,27 @@ export default function ProductsContent() {
     setMinDiscount(0)
   }
 
+  const catId = category !== "all" ? categoryIdMap.get(category) : undefined
+
+  const { data: priceRange } = useQuery({
+    queryKey: ["price-range", searchFromUrl, catId, minDiscount],
+    enabled: urlReady,
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (searchFromUrl) params.set("q", searchFromUrl)
+      if (catId) params.set("category_id", String(catId))
+      if (minDiscount > 0) params.set("min_discount", String(minDiscount))
+      const qs = params.toString()
+      return api.get<{ min_price: number; max_price: number }>(`/products/price-range${qs ? `?${qs}` : ""}`)
+    },
+  })
+
+  const priceMin = priceRange?.min_price ?? 0
+  const priceMax = priceRange?.max_price ?? 1000
   const hasFilters = category !== "all" || sort !== "default" || minRating > 0 || minDiscount > 0 ||
     (minPrice !== "" && parseFloat(minPrice) > priceMin) ||
     (maxPrice !== "" && parseFloat(maxPrice) < priceMax)
-
   const skip = (page - 1) * LIMIT
-  const catId = category !== "all" ? categoryIdMap.get(category) : undefined
   const productsQueryKey = searchFromUrl
     ? ["products", "search", searchFromUrl, catId, page, minPrice, maxPrice, minRating, minDiscount, sort]
     : ["products", "list", skip, LIMIT, category, sort, minPrice, maxPrice, minRating, minDiscount, priceMin, priceMax]

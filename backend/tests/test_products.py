@@ -25,6 +25,39 @@ class TestPriceRange:
         assert resp.status_code == 200
         assert resp.json() == {"min_price": 5.0, "max_price": 99.99}
 
+    def test_filtered_by_search_query(self, client: TestClient, admin_token_headers):
+        api_create_product(client, {"sku": "PR-S1", "title": "Apple iPhone", "price": 100.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "PR-S2", "title": "Apple MacBook", "price": 500.0}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "PR-S3", "title": "Samsung Phone", "price": 200.0}, headers=admin_token_headers)
+
+        resp = client.get("/api/v1/products/price-range?q=apple")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["min_price"] == 100.0
+        assert data["max_price"] == 500.0
+
+    def test_filtered_by_category(self, client: TestClient, admin_token_headers):
+        cat = api_create_category(client, "test-cat", headers=admin_token_headers)
+        api_create_product(client, {"sku": "PR-C1", "price": 10.0, "category_id": cat["id"]}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "PR-C2", "price": 50.0, "category_id": cat["id"]}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "PR-C3", "price": 999.0}, headers=admin_token_headers)
+
+        resp = client.get(f"/api/v1/products/price-range?category_id={cat['id']}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["min_price"] == 10.0
+        assert data["max_price"] == 50.0
+
+    def test_filtered_by_discount(self, client: TestClient, admin_token_headers):
+        api_create_product(client, {"sku": "PR-D1", "price": 10.0, "discountPercentage": 20}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "PR-D2", "price": 50.0, "discountPercentage": 0}, headers=admin_token_headers)
+
+        resp = client.get("/api/v1/products/price-range?min_discount=10")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["min_price"] == 10.0
+        assert data["max_price"] == 10.0
+
 
 class TestSortProducts:
     def test_default_sort_by_id_asc(self, client: TestClient, admin_token_headers):
