@@ -19,7 +19,7 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     status = Column(Enum(OrderStatus), default=OrderStatus.PAID, nullable=False)
     shipping_name = Column(String, nullable=False)
     shipping_phone = Column(String, nullable=False)

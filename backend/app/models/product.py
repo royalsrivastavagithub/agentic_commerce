@@ -33,6 +33,7 @@ class Product(Base):
 
     category_rel = relationship("Category", lazy="joined")
     reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan", lazy="select")
+    wishlist_items = relationship("WishlistItem", back_populates="product", cascade="all, delete-orphan")
 
     @property
     def category(self):

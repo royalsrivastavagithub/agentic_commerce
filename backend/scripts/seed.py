@@ -30,14 +30,16 @@ from app.models.review import Review
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 PRODUCTS_FILE = DATA_DIR / "new_products.json"
 API_PREFIX = "/api/v1"
+FEATURED_COUNT = 10
+RANDOM_SEED = 42
 
 # ── Test users ──────────────────────────────────────────────────────────
 TEST_USERS = [
-    {"email": "alice@test.com",  "first_name": "Alice",  "password": "test123"},
-    {"email": "bob@test.com",    "first_name": "Bob",    "password": "test123"},
-    {"email": "charlie@test.com","first_name": "Charlie","password": "test123"},
-    {"email": "diana@test.com",  "first_name": "Diana",  "password": "test123"},
-    {"email": "eve@test.com",    "first_name": "Eve",    "password": "test123"},
+    {"email": "alice@test.com",   "first_name": "Alice",   "last_name": "Johnson",  "phone": "9876543210", "gender": "female", "password": "test123"},
+    {"email": "bob@test.com",     "first_name": "Bob",     "last_name": "Smith",    "phone": "9876543211", "gender": "male",   "password": "test123"},
+    {"email": "charlie@test.com", "first_name": "Charlie", "last_name": "Brown",    "phone": "9876543212", "gender": "male",   "password": "test123"},
+    {"email": "diana@test.com",   "first_name": "Diana",   "last_name": "Prince",   "phone": "9876543213", "gender": "female", "password": "test123"},
+    {"email": "eve@test.com",     "first_name": "Eve",     "last_name": "Davis",    "phone": "9876543214", "gender": "female", "password": "test123"},
 ]
 
 REVIEW_COMMENTS = [
@@ -72,9 +74,14 @@ def _load_products() -> list[dict]:
 def _get_or_create_admin(db) -> User:
     admin = db.query(User).filter(User.role == "admin").first()
     if not admin:
+        from datetime import date
         admin = User(
             email="admin@admin.com",
             first_name="Admin",
+            last_name="User",
+            phone="9999999999",
+            date_of_birth=date(1990, 1, 1),
+            gender="other",
             hashed_password=get_password_hash("admin"),
             is_active=True,
             is_verified=True,
@@ -94,9 +101,15 @@ def _create_test_users(db) -> list[User]:
     for info in TEST_USERS:
         user = db.query(User).filter(User.email == info["email"]).first()
         if not user:
+            from datetime import date
+            dob = date(1990, 1, 1)
             user = User(
                 email=info["email"],
                 first_name=info["first_name"],
+                last_name=info["last_name"],
+                phone=info["phone"],
+                date_of_birth=dob,
+                gender=info["gender"],
                 hashed_password=get_password_hash(info["password"]),
                 is_active=True,
                 is_verified=True,
@@ -110,15 +123,16 @@ def _create_test_users(db) -> list[User]:
             print(f"  Using existing user: {info['email']} (id={user.id})")
 
         # Ensure each user has at least one address
+        rng_addr = random.Random(user.id)
         addr = db.query(Address).filter(Address.user_id == user.id).first()
         if not addr:
             addr = Address(
                 user_id=user.id,
                 label="Home",
-                street=f"{random.randint(1, 999)} Test Street",
-                city=random.choice(["Mumbai", "Delhi", "Bangalore", "Chennai", "Pune"]),
-                state=random.choice(["Maharashtra", "Delhi", "Karnataka", "Tamil Nadu"]),
-                pincode=str(random.randint(100000, 999999)),
+                street=f"{rng_addr.randint(1, 999)} Test Street",
+                city=rng_addr.choice(["Mumbai", "Delhi", "Bangalore", "Chennai", "Pune"]),
+                state=rng_addr.choice(["Maharashtra", "Delhi", "Karnataka", "Tamil Nadu"]),
+                pincode=str(rng_addr.randint(100000, 999999)),
                 country="India",
                 is_default=True,
                 address_type="both",
@@ -153,13 +167,13 @@ def _seed_categories(client, headers, products) -> dict[str, int]:
 
 def _seed_products(client, headers, products, cat_mapping):
     for i, p in enumerate(products):
-        p["is_featured"] = i < 10
+        p["is_featured"] = i < FEATURED_COUNT
 
     created = 0
     skipped = 0
     errors = 0
     for p in products:
-        cat_name = p.pop("category", None)
+        cat_name = p.get("category")
         cat_id = cat_mapping.get(cat_name)
         if cat_id is None:
             errors += 1
@@ -183,15 +197,16 @@ def _seed_products(client, headers, products, cat_mapping):
 # ── Order & review seeding (direct DB) ──────────────────────────────────
 
 def _create_orders_and_reviews(db, products, users):
+    rng = random.Random(RANDOM_SEED)
     order_count = 0
     review_count = 0
 
-    shuffled_products = random.sample(products, len(products))
+    shuffled_products = rng.sample(products, len(products))
     idx = 0
 
     for user in users:
         for _ in range(5):
-            num_items = random.randint(3, 6)
+            num_items = rng.randint(3, 6)
             items_in_order = shuffled_products[idx : idx + num_items]
             idx += num_items
             if not items_in_order or idx > len(shuffled_products):
@@ -200,7 +215,7 @@ def _create_orders_and_reviews(db, products, users):
             order_subtotal = 0
             item_data = []
             for prod in items_in_order:
-                qty = random.randint(1, 2)
+                qty = rng.randint(1, 2)
                 line_subtotal = round(prod["price"] * qty, 2)
                 order_subtotal += line_subtotal
                 item_data.append((prod, qty, line_subtotal))
@@ -212,12 +227,12 @@ def _create_orders_and_reviews(db, products, users):
                 subtotal=order_subtotal,
                 status=OrderStatus.DELIVERED,
                 shipping_name=f"{user.first_name} Test",
-                shipping_phone=f"99999{random.randint(10000, 99999)}",
-                shipping_address_line_1=f"{random.randint(1, 999)} Test Street",
-                shipping_city=random.choice(["Mumbai", "Delhi", "Bangalore", "Chennai", "Pune"]),
-                shipping_state=random.choice(["Maharashtra", "Delhi", "Karnataka", "Tamil Nadu"]),
+                shipping_phone=f"99999{rng.randint(10000, 99999)}",
+                shipping_address_line_1=f"{rng.randint(1, 999)} Test Street",
+                shipping_city=rng.choice(["Mumbai", "Delhi", "Bangalore", "Chennai", "Pune"]),
+                shipping_state=rng.choice(["Maharashtra", "Delhi", "Karnataka", "Tamil Nadu"]),
                 shipping_country="India",
-                shipping_pincode=str(random.randint(100000, 999999)),
+                shipping_pincode=str(rng.randint(100000, 999999)),
                 created_at=datetime.now(timezone.utc),
             )
             db.add(order)
@@ -235,11 +250,11 @@ def _create_orders_and_reviews(db, products, users):
                 )
                 db.add(order_item)
 
-                rating = random.choices(
+                rating = rng.choices(
                     [1, 2, 3, 4, 5],
                     weights=[1, 2, 4, 5, 3],
                 )[0]
-                comment = random.choice(REVIEW_COMMENTS)
+                comment = rng.choice(REVIEW_COMMENTS)
                 existing = (
                     db.query(Review)
                     .filter(Review.user_id == user.id, Review.product_id == prod["id"])
