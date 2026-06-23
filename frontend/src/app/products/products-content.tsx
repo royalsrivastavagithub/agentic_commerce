@@ -5,7 +5,7 @@ import { api } from "@/lib/api-client"
 import type { Product, ProductListResponse, Category } from "@/types/api"
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Star } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 import { Slider } from "@/components/ui/slider"
@@ -24,6 +24,11 @@ export default function ProductsContent() {
   const searchParams = useSearchParams()
   const searchFromUrl = searchParams.get("search") ?? ""
   const categoryFromUrl = searchParams.get("category") ?? ""
+  const sortFromUrl = searchParams.get("sort") ?? ""
+  const pageFromUrl = parseInt(searchParams.get("page") ?? "1", 10)
+  const minPriceFromUrl = searchParams.get("min_price") ?? ""
+  const maxPriceFromUrl = searchParams.get("max_price") ?? ""
+  const minRatingFromUrl = parseInt(searchParams.get("min_rating") ?? "0", 10)
   const [category, setCategory] = useState<string>("all")
   const [urlReady, setUrlReady] = useState(false)
   const [sort, setSort] = useState<string>("default")
@@ -44,12 +49,18 @@ export default function ProductsContent() {
 
   const priceMin = priceRange?.min_price ?? 0
   const priceMax = priceRange?.max_price ?? 1000
+  const router = useRouter()
 
   // Sync URL params into state (Next.js useSearchParams resolves async)
   useEffect(() => {
     if (categoryFromUrl) setCategory(categoryFromUrl)
+    if (["price-asc", "price-desc", "rating"].includes(sortFromUrl)) setSort(sortFromUrl)
+    if (pageFromUrl > 1) setPage(pageFromUrl)
+    if (minPriceFromUrl) setMinPrice(minPriceFromUrl)
+    if (maxPriceFromUrl) setMaxPrice(maxPriceFromUrl)
+    if (minRatingFromUrl > 0) setMinRating(minRatingFromUrl)
     setUrlReady(true)
-  }, [categoryFromUrl])
+  }, [categoryFromUrl, sortFromUrl, pageFromUrl, minPriceFromUrl, maxPriceFromUrl, minRatingFromUrl])
 
   useEffect(() => {
     setPage(1)
@@ -58,6 +69,20 @@ export default function ProductsContent() {
   useEffect(() => {
     if (searchFromUrl && !categoryFromUrl) setCategory("all")
   }, [searchFromUrl, categoryFromUrl])
+
+  useEffect(() => {
+    if (!urlReady) return
+    const params = new URLSearchParams()
+    if (searchFromUrl) params.set("search", searchFromUrl)
+    if (categoryFromUrl) params.set("category", categoryFromUrl)
+    if (sort !== "default") params.set("sort", sort)
+    if (page > 1) params.set("page", String(page))
+    if (minPrice) params.set("min_price", minPrice)
+    if (maxPrice) params.set("max_price", maxPrice)
+    if (minRating > 0) params.set("min_rating", String(minRating))
+    const qs = params.toString()
+    router.replace(`/products${qs ? `?${qs}` : ""}`, { scroll: false })
+  }, [sort, page, minPrice, maxPrice, minRating, searchFromUrl, categoryFromUrl, urlReady])
 
   const categoryIdMap = useMemo(() => {
     const m = new Map<string, number>()

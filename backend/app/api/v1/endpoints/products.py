@@ -1,6 +1,5 @@
-from rapidfuzz import fuzz
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -8,23 +7,6 @@ from app.models.product import Product
 from app.schemas.product import ProductSchema, ProductsResponse
 
 router = APIRouter(tags=["products"])
-
-
-def _score_product(q: str, p: Product) -> float:
-    q_lower = q.lower()
-    title = p.title.lower()
-    desc = p.description.lower()
-    brand = (p.brand or "").lower()
-
-    scores = [
-        fuzz.ratio(q_lower, title),
-        fuzz.partial_ratio(q_lower, title) * 0.9,
-        fuzz.partial_ratio(q_lower, desc) * 0.7,
-    ]
-    if brand:
-        scores.append(fuzz.partial_ratio(q_lower, brand) * 0.6)
-
-    return max(scores)
 
 
 @router.get(
@@ -84,7 +66,7 @@ def get_products(
     "/products/search",
     response_model=ProductsResponse,
     response_model_by_alias=True,
-    summary="Search products with fuzzy matching",
+    summary="Search products by title or brand",
 )
 def search_products(
     q: str = Query(..., min_length=1),
@@ -98,29 +80,37 @@ def search_products(
     min_rating: float | None = Query(None, ge=0, le=5),
     db: Session = Depends(get_db),
 ):
-    base_query = db.query(Product)
+    safe_q = q.replace("%", "\\%").replace("_", "\\_")
+    like_pattern = f"%{safe_q}%"
+    query = db.query(Product).filter(or_(
+        Product.title.ilike(like_pattern, escape="\\"),
+        Product.brand.ilike(like_pattern, escape="\\"),
+    ))
     if category_id is not None:
-        base_query = base_query.filter(Product.category_id == category_id)
+        query = query.filter(Product.category_id == category_id)
     if min_price is not None:
-        base_query = base_query.filter(Product.price >= min_price)
+        query = query.filter(Product.price >= min_price)
     if max_price is not None:
-        base_query = base_query.filter(Product.price <= max_price)
+        query = query.filter(Product.price <= max_price)
     if min_rating is not None:
-        base_query = base_query.filter(Product.rating >= min_rating)
-    all_products = base_query.all()
-    scored = [(p, _score_product(q, p)) for p in all_products]
-    matched = [(p, s) for p, s in scored if s >= 40]
+        query = query.filter(Product.rating >= min_rating)
 
-    if sort_by:
-        col = Product.price if sort_by == "price" else Product.rating
-        col = col.desc() if sort_order == "desc" else col.asc()
-        matched.sort(key=lambda x: getattr(x[0], sort_by), reverse=(sort_order == "desc"))
+    total = query.count()
+
+    if sort_by == "price":
+        col = Product.price
+    elif sort_by == "rating":
+        col = Product.rating
     else:
-        matched.sort(key=lambda x: -x[1])
+        col = Product.id
 
-    total = len(matched)
-    page = [p for p, _ in matched[skip:skip + limit]]
-    return ProductsResponse(products=page, total=total, skip=skip, limit=limit)
+    if sort_order == "desc":
+        col = col.desc()
+    else:
+        col = col.asc()
+
+    products = query.order_by(col).offset(skip).limit(limit).all()
+    return ProductsResponse(products=products, total=total, skip=skip, limit=limit)
 
 
 @router.get(
