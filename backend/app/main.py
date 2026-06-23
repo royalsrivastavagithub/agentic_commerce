@@ -34,20 +34,6 @@ def _seed_admin():
             db.add(admin)
             db.commit()
             db.refresh(admin)
-            token = create_access_token(subject=admin.id, role=admin.role)
-            print("\n" + "=" * 60)
-            print("ADMIN ACCOUNT CREATED")
-            print(f"  Email:    {ADMIN_EMAIL}")
-            print(f"  Password: {ADMIN_PASSWORD}")
-            print(f"  JWT Token (paste in Swagger Authorize):")
-            print(f"  {token}")
-            print("=" * 60 + "\n")
-        else:
-            token = create_access_token(subject=existing.id, role=existing.role)
-            print("\n" + "=" * 60)
-            print("ADMIN JWT TOKEN:")
-            print(f"  {token}")
-            print("=" * 60 + "\n")
     finally:
         db.close()
 

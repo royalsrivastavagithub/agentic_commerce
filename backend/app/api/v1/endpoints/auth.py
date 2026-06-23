@@ -27,11 +27,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @limiter.limit("30/minute")
 def signup(request: Request, user_in: UserCreate, db: Session = Depends(get_db)):
     new_user = user_service.register_user(db, user_in)
-    print("\n" + "=" * 60)
-    print(f"VERIFICATION TOKEN FOR {new_user.email}:")
-    print(f"  {new_user.verification_token}")
-    print("=" * 60 + "\n")
-    logger.info(f"Generated verification token for {new_user.email}: {new_user.verification_token}")
+    logger.info("Generated verification token for %s: %s", new_user.email, new_user.verification_token)
     return new_user
 
 
