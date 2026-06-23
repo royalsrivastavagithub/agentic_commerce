@@ -123,7 +123,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   </option>
                 ))}
               </select>
-              <div className="flex flex-1">
+              <div className="relative flex flex-1">
                 <input
                   type="text"
                   placeholder="Search products..."
