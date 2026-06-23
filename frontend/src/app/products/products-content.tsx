@@ -31,6 +31,7 @@ export default function ProductsContent() {
   const maxPriceFromUrl = searchParams.get("max_price") ?? ""
   const minRatingFromUrl = parseInt(searchParams.get("min_rating") ?? "0", 10)
   const minDiscountFromUrl = parseInt(searchParams.get("min_discount") ?? "0", 10)
+  const isFeaturedFromUrl = searchParams.get("is_featured") === "true" ? true : searchParams.get("is_featured") === "false" ? false : null
   const [category, setCategory] = useState<string>("all")
   const [urlReady, setUrlReady] = useState(false)
   const [sort, setSort] = useState<string>("default")
@@ -39,6 +40,7 @@ export default function ProductsContent() {
   const [maxPrice, setMaxPrice] = useState("")
   const [minRating, setMinRating] = useState<number>(0)
   const [minDiscount, setMinDiscount] = useState<number>(0)
+  const [isFeatured, setIsFeatured] = useState<boolean | null>(null)
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -56,8 +58,9 @@ export default function ProductsContent() {
     if (maxPriceFromUrl) setMaxPrice(maxPriceFromUrl)
     if (minRatingFromUrl > 0) setMinRating(minRatingFromUrl)
     if (minDiscountFromUrl > 0) setMinDiscount(minDiscountFromUrl)
+    if (isFeaturedFromUrl !== null) setIsFeatured(isFeaturedFromUrl)
     setUrlReady(true)
-  }, [categoryFromUrl, sortFromUrl, pageFromUrl, minPriceFromUrl, maxPriceFromUrl, minRatingFromUrl, minDiscountFromUrl])
+  }, [categoryFromUrl, sortFromUrl, pageFromUrl, minPriceFromUrl, maxPriceFromUrl, minRatingFromUrl, minDiscountFromUrl, isFeaturedFromUrl])
 
   useEffect(() => {
     setPage(1)
@@ -78,9 +81,10 @@ export default function ProductsContent() {
     if (maxPrice) params.set("max_price", maxPrice)
     if (minRating > 0) params.set("min_rating", String(minRating))
     if (minDiscount > 0) params.set("min_discount", String(minDiscount))
+    if (isFeatured !== null) params.set("is_featured", String(isFeatured))
     const qs = params.toString()
     router.replace(`/products${qs ? `?${qs}` : ""}`, { scroll: false })
-  }, [sort, page, minPrice, maxPrice, minRating, searchFromUrl, categoryFromUrl, urlReady])
+  }, [sort, page, minPrice, maxPrice, minRating, isFeatured, searchFromUrl, categoryFromUrl, urlReady])
 
   useEffect(() => {
     setMinPrice("")
@@ -101,6 +105,7 @@ export default function ProductsContent() {
     setMaxPrice("")
     setMinRating(0)
     setMinDiscount(0)
+    setIsFeatured(null)
   }
 
   const catId = category !== "all" ? categoryIdMap.get(category) : undefined
@@ -124,9 +129,10 @@ export default function ProductsContent() {
     (minPrice !== "" && parseFloat(minPrice) > priceMin) ||
     (maxPrice !== "" && parseFloat(maxPrice) < priceMax)
   const skip = (page - 1) * LIMIT
+  const featuredParam = isFeatured !== null ? `&is_featured=${isFeatured}` : ""
   const productsQueryKey = searchFromUrl
-    ? ["products", "search", searchFromUrl, catId, page, minPrice, maxPrice, minRating, minDiscount, sort]
-    : ["products", "list", skip, LIMIT, category, sort, minPrice, maxPrice, minRating, minDiscount, priceMin, priceMax]
+    ? ["products", "search", searchFromUrl, catId, page, minPrice, maxPrice, minRating, minDiscount, sort, isFeatured]
+    : ["products", "list", skip, LIMIT, category, sort, minPrice, maxPrice, minRating, minDiscount, isFeatured, priceMin, priceMax]
 
   const { data: productsData, isLoading } = useQuery({
     queryKey: productsQueryKey,
@@ -142,9 +148,9 @@ export default function ProductsContent() {
         return api.get<ProductListResponse>(url)
       }
       if (catId) {
-        return api.get<ProductListResponse>(`/categories/${catId}/products?skip=${skip}&limit=${LIMIT}${sortParams}${filterParams}`)
+        return api.get<ProductListResponse>(`/categories/${catId}/products?skip=${skip}&limit=${LIMIT}${sortParams}${filterParams}${featuredParam}`)
       }
-      return api.get<ProductListResponse>(`/products?skip=${skip}&limit=${LIMIT}${sortParams}${filterParams}`)
+      return api.get<ProductListResponse>(`/products?skip=${skip}&limit=${LIMIT}${sortParams}${filterParams}${featuredParam}`)
     },
   })
 

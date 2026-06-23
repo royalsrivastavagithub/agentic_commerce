@@ -50,6 +50,7 @@ def get_products(
     max_price: float | None = Query(None, ge=0),
     min_rating: float | None = Query(None, ge=0, le=5),
     min_discount: float | None = Query(None, ge=0, le=100),
+    is_featured: bool | None = Query(None),
     db: Session = Depends(get_db),
 ):
     query = db.query(Product)
@@ -62,6 +63,8 @@ def get_products(
         query = query.filter(Product.rating >= min_rating)
     if min_discount is not None:
         query = query.filter(Product.discount_percentage >= min_discount)
+    if is_featured is not None:
+        query = query.filter(Product.is_featured.is_(is_featured))
 
     total = query.count()
 

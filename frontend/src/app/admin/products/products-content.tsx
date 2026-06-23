@@ -147,7 +147,7 @@ export default function ProductsContent() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => {}}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditProduct(null)}>Cancel</Button>
             <Button onClick={() => updateMutation.mutate({ id: editProduct!.id, ...editForm })} disabled={updateMutation.isPending}>
               {updateMutation.isPending ? "Saving..." : "Save"}
             </Button>

@@ -62,12 +62,13 @@ export default function HomeContent() {
         {/* Today's Deals */}
         {dealProducts.length > 0 && (
           <section className="mb-10">
-            <div className="mb-4">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-foreground">Today&apos;s Deals</h2>
+              <Link href="/products?min_discount=10" className="text-sm font-medium text-amazon-link hover:underline">View All</Link>
             </div>
-            <div className="flex flex-col gap-3">
+            <div className="flex gap-4 overflow-x-auto pb-2 snap-x">
               {dealProducts.map((product) => (
-                <FeaturedCard key={product.id} product={product} />
+                <MiniCard key={product.id} product={product} />
               ))}
             </div>
           </section>
@@ -75,16 +76,16 @@ export default function HomeContent() {
 
         {/* Featured Products */}
         <section className="mb-10">
-          <div className="mb-4">
+          <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-bold text-foreground">Featured Products</h2>
+            <Link href="/products?is_featured=true" className="text-sm font-medium text-amazon-link hover:underline">View All</Link>
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="flex gap-4 overflow-x-auto pb-2 snap-x">
             {products.map((product) => (
-              <FeaturedCard key={product.id} product={product} />
+              <MiniCard key={product.id} product={product} />
             ))}
           </div>
         </section>
-
       </div>
     </Shell>
   )
@@ -147,6 +148,35 @@ function FeaturedCard({ product }: { product: Product }) {
         ) : (
           <span className="text-lg font-bold sm:text-xl">₹{product.price.toFixed(2)}</span>
         )}
+      </div>
+    </Link>
+  )
+}
+
+function MiniCard({ product }: { product: Product }) {
+  const discounted = product.price * (1 - (product.discountPercentage ?? product.discount_percentage ?? 0) / 100)
+
+  return (
+    <Link
+      href={`/products/${product.id}`}
+      className="w-40 shrink-0 snap-start rounded-lg border bg-white p-2 transition-shadow hover:shadow-lg dark:border-border dark:bg-card"
+    >
+      <div className="mb-2 h-28 overflow-hidden rounded-md bg-white">
+        <img src={product.thumbnail || "/placeholder.svg"} alt={product.title} className="h-full w-full object-contain" />
+      </div>
+      <p className="line-clamp-1 text-xs font-medium text-foreground">{product.title}</p>
+      {(product.discountPercentage ?? product.discount_percentage ?? 0) > 0 ? (
+        <div className="mt-1">
+          <span className="text-sm font-bold">₹{discounted.toFixed(2)}</span>
+          <span className="ml-1 text-[10px] text-muted-foreground line-through">₹{product.price.toFixed(2)}</span>
+        </div>
+      ) : (
+        <p className="mt-1 text-sm font-bold">₹{product.price.toFixed(2)}</p>
+      )}
+      <div className="mt-1 flex items-center gap-0.5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Star key={i} className={`h-2.5 w-2.5 ${i < Math.round(product.rating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
+        ))}
       </div>
     </Link>
   )
