@@ -38,7 +38,11 @@ async function request<T>(
       localStorage.removeItem("auth-storage")
       window.location.href = "/auth/login"
     }
-    throw new ApiError(res.status, error.detail ?? "Request failed")
+    const raw = error.detail
+    const detail = typeof raw === "string" ? raw
+      : Array.isArray(raw) ? raw.map((d: { msg?: string }) => d.msg ?? String(d)).join("; ")
+      : "Request failed"
+    throw new ApiError(res.status, detail)
   }
 
   if (res.status === 204) return undefined as T

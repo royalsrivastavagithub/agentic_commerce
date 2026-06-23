@@ -8,8 +8,25 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { CalendarIcon } from "lucide-react"
+import { format } from "date-fns"
 import { toast } from "sonner"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
+
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9\s])[\S]{8,16}$/
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+interface FieldErrors {
+  first_name?: string
+  last_name?: string
+  email?: string
+  phone?: string
+  date_of_birth?: string
+  gender?: string
+  password?: string
+}
 
 export default function SignupContent() {
   const [form, setForm] = useState({
@@ -18,12 +35,38 @@ export default function SignupContent() {
   })
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [errors, setErrors] = useState<FieldErrors>({})
+  const [touched, setTouched] = useState<Set<string>>(new Set())
+
+  const markTouched = (field: string) => {
+    setTouched((prev) => new Set(prev).add(field))
+  }
+
+  const validate = (): FieldErrors => {
+    const errs: FieldErrors = {}
+    if (!form.first_name?.trim()) errs.first_name = "First name is required"
+    if (!form.last_name?.trim()) errs.last_name = "Last name is required"
+    if (!form.email?.trim()) errs.email = "Email is required"
+    else if (!EMAIL_REGEX.test(form.email)) errs.email = "Enter a valid email address"
+    if (!form.password) errs.password = "Password is required"
+    else if (form.password.length < 8 || form.password.length > 16) errs.password = "Password must be 8–16 characters"
+    else if (!PASSWORD_REGEX.test(form.password)) errs.password = "Must include uppercase, lowercase, digit, and symbol"
+    return errs
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const errs = validate()
+    setErrors(errs)
+    if (Object.keys(errs).length > 0) return
+
     setLoading(true)
     try {
-      await api.post<User>("/auth/signup", form)
+      const payload = { ...form }
+      if (!payload.phone) payload.phone = ""
+      if (!payload.gender) payload.gender = ""
+
+      await api.post<User>("/auth/signup", payload)
       setDone(true)
       toast.success("Account created! You can now log in.")
     } catch (err) {
@@ -32,6 +75,8 @@ export default function SignupContent() {
       setLoading(false)
     }
   }
+
+  const showError = (field: string) => touched.has(field) && errors[field as keyof FieldErrors]
 
   if (done) {
     return (
@@ -61,39 +106,37 @@ export default function SignupContent() {
             <CardTitle className="text-2xl">Create Account</CardTitle>
             <CardDescription>Sign up for a new account</CardDescription>
           </CardHeader>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="first_name">First Name</Label>
+                <FieldWrap label="First Name *" error={showError("first_name") ? errors.first_name : undefined}>
                   <Input
                     id="first_name"
                     value={form.first_name}
-                    onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
+                    onChange={(e) => { setForm((f) => ({ ...f, first_name: e.target.value })); setErrors((prev) => ({ ...prev, first_name: undefined })) }}
+                    onBlur={() => markTouched("first_name")}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="last_name">Last Name</Label>
+                </FieldWrap>
+                <FieldWrap label="Last Name *" error={showError("last_name") ? errors.last_name : undefined}>
                   <Input
                     id="last_name"
                     value={form.last_name}
-                    onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
+                    onChange={(e) => { setForm((f) => ({ ...f, last_name: e.target.value })); setErrors((prev) => ({ ...prev, last_name: undefined })) }}
+                    onBlur={() => markTouched("last_name")}
                   />
-                </div>
+                </FieldWrap>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+              <FieldWrap label="Email *" error={showError("email") ? errors.email : undefined}>
                 <Input
                   id="email"
                   type="email"
                   placeholder="you@example.com"
                   value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  required
+                  onChange={(e) => { setForm((f) => ({ ...f, email: e.target.value })); setErrors((prev) => ({ ...prev, email: undefined })) }}
+                  onBlur={() => markTouched("email")}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
+              </FieldWrap>
+              <FieldWrap label="Phone" error={showError("phone") ? errors.phone : undefined}>
                 <Input
                   id="phone"
                   type="tel"
@@ -101,17 +144,34 @@ export default function SignupContent() {
                   value={form.phone}
                   onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 />
-              </div>
+              </FieldWrap>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="dob">Date of Birth</Label>
-                  <Input
-                    id="dob"
-                    type="date"
-                    value={form.date_of_birth}
-                    onChange={(e) => setForm((f) => ({ ...f, date_of_birth: e.target.value }))}
-                  />
-                </div>
+                <FieldWrap label="Date of Birth" error={showError("date_of_birth") ? errors.date_of_birth : undefined}>
+                  <Popover>
+                    <PopoverTrigger className="w-full">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.date_of_birth ? format(new Date(form.date_of_birth + "T00:00:00"), "dd/MM/yyyy") : "DD/MM/YYYY"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={form.date_of_birth ? new Date(form.date_of_birth + "T00:00:00") : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            setForm((f) => ({ ...f, date_of_birth: format(date, "yyyy-MM-dd") }))
+                            setErrors((prev) => ({ ...prev, date_of_birth: undefined }))
+                            markTouched("date_of_birth")
+                          }
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </FieldWrap>
                 <div className="space-y-2">
                   <Label htmlFor="gender">Gender</Label>
                   <select
@@ -126,23 +186,24 @@ export default function SignupContent() {
                   </select>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+              <FieldWrap label="Password *" error={showError("password") ? errors.password : undefined}>
                 <Input
                   id="password"
                   type="password"
                   placeholder="••••••••"
                   value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  required
-                  minLength={6}
+                  onChange={(e) => { setForm((f) => ({ ...f, password: e.target.value })); setErrors((prev) => ({ ...prev, password: undefined })) }}
+                  onBlur={() => markTouched("password")}
                 />
-              </div>
+              </FieldWrap>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Creating account..." : "Create account"}
               </Button>
+              {Object.keys(errors).length > 0 && (
+                <p className="text-center text-xs text-destructive">Please fix the errors above before submitting.</p>
+              )}
               <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{" "}
                 <Link href="/auth/login" className="font-medium text-primary hover:underline">
@@ -154,5 +215,15 @@ export default function SignupContent() {
         </Card>
       </div>
     </Shell>
+  )
+}
+
+function FieldWrap({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      {children}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
   )
 }

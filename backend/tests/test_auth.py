@@ -11,7 +11,7 @@ def test_signup_flow(client: TestClient, db: Session):
     # 1. Signup a user
     signup_payload = {
         "email": "testuser@example.com",
-        "password": "strongpassword123"
+        "password": "Str0ng!pass"
     }
     
     response = client.post("/api/v1/auth/signup", json=signup_payload)
@@ -51,7 +51,7 @@ def test_signup_flow(client: TestClient, db: Session):
 def test_signup_with_profile_fields(client: TestClient, db: Session):
     payload = {
         "email": "profile@example.com",
-        "password": "password123",
+        "password": "Test@1234",
         "first_name": "John",
         "last_name": "Doe",
         "phone": "+91-9876543210",
@@ -78,7 +78,7 @@ def test_signup_with_profile_fields(client: TestClient, db: Session):
 def test_signup_duplicate_email(client: TestClient):
     signup_payload = {
         "email": "duplicate@example.com",
-        "password": "password123"
+        "password": "Test@1234"
     }
     
     # First signup
@@ -93,11 +93,11 @@ def test_signup_duplicate_email(client: TestClient):
 def test_signup_duplicate_email_case_insensitive(client: TestClient):
     client.post(
         "/api/v1/auth/signup",
-        json={"email": "CaseTest@Example.com", "password": "pw"}
+        json={"email": "CaseTest@Example.com", "password": "Tes@1234"}
     )
     resp = client.post(
         "/api/v1/auth/signup",
-        json={"email": "casetest@example.com", "password": "pw"}
+        json={"email": "casetest@example.com", "password": "Tes@1234"}
     )
     assert resp.status_code == 400
     assert resp.json()["detail"] == "Email already registered"
@@ -111,7 +111,7 @@ def test_verify_email_invalid_token(client: TestClient):
 def test_signup_invalid_email(client: TestClient):
     resp = client.post(
         "/api/v1/auth/signup",
-        json={"email": "not-an-email", "password": "password123"},
+        json={"email": "not-an-email", "password": "Test@1234"},
     )
     assert resp.status_code == 422
 
@@ -119,7 +119,7 @@ def test_signup_invalid_email(client: TestClient):
 def test_login_nonexistent_email(client: TestClient):
     resp = client.post(
         "/api/v1/auth/login",
-        json={"email": "nobody@example.com", "password": "anything"},
+        json={"email": "nobody@example.com", "password": "Tes@1234"},
     )
     assert resp.status_code == 400
     assert resp.json()["detail"] == "Invalid credentials"
@@ -128,14 +128,14 @@ def test_login_nonexistent_email(client: TestClient):
 def test_login_access_token_wrong_password(client: TestClient, db: Session):
     client.post(
         "/api/v1/auth/signup",
-        json={"email": "formtest@example.com", "password": "correctpw"},
+        json={"email": "formtest@example.com", "password": "Tes@1234"},
     )
     user = db.query(User).filter(User.email == "formtest@example.com").first()
     client.get(f"/api/v1/auth/verify-email?token={user.verification_token}")
 
     resp = client.post(
         "/api/v1/auth/login/access-token",
-        data={"username": "formtest@example.com", "password": "wrongpw"},
+        data={"username": "formtest@example.com", "password": "N0tMy@pass"},
     )
     assert resp.status_code == 400
     assert resp.json()["detail"] == "Invalid credentials"
@@ -143,7 +143,7 @@ def test_login_access_token_wrong_password(client: TestClient, db: Session):
 
 def test_login_flow(client: TestClient, db: Session):
     email = "login_test@example.com"
-    password = "secretpassword"
+    password = "Secr3t!pw"
     
     # 1. Register user
     signup_response = client.post(
@@ -189,7 +189,7 @@ def test_login_flow(client: TestClient, db: Session):
     # 6. Login with incorrect password (should fail)
     bad_pw_response = client.post(
         "/api/v1/auth/login",
-        json={"email": email, "password": "wrongpassword"}
+        json={"email": email, "password": "Wrong!Pass1"}
     )
     assert bad_pw_response.status_code == 400
     assert bad_pw_response.json()["detail"] == "Invalid credentials"
@@ -197,7 +197,7 @@ def test_login_flow(client: TestClient, db: Session):
 
 class TestTokenSecurity:
     def test_expired_token_returns_401(self, client: TestClient, db: Session, admin_token_headers):
-        resp = client.post("/api/v1/admin/products", json={"title": "x"}, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json={"title": "Tes@1234"}, headers=admin_token_headers)
         assert resp.status_code == 422  # ensure admin_token_headers is valid before expiry test
 
     def test_malformed_token_on_public_route_ignored(self, client: TestClient):
@@ -210,7 +210,7 @@ class TestTokenSecurity:
     def test_malformed_token_on_protected_route_returns_401(self, client: TestClient):
         resp = client.post(
             "/api/v1/admin/products",
-            json={"title": "x"},
+            json={"title": "Tes@1234"},
             headers={"Authorization": "Bearer this.is.not.a.valid.jwt"},
         )
         assert resp.status_code == 401
@@ -219,7 +219,7 @@ class TestTokenSecurity:
     def test_tampered_token_returns_401(self, client: TestClient, db: Session):
         user = User(
             email="tamper@test.com",
-            hashed_password="x",
+            hashed_password="Tes@1234",
             is_active=True,
             is_verified=True,
             role="admin",
@@ -232,7 +232,7 @@ class TestTokenSecurity:
         tampered = f"{parts[0]}.{parts[1]}.invalidsignature"
         resp = client.post(
             "/api/v1/admin/products",
-            json={"title": "x"},
+            json={"title": "Tes@1234"},
             headers={"Authorization": f"Bearer {tampered}"},
         )
         assert resp.status_code == 401
@@ -241,7 +241,7 @@ class TestTokenSecurity:
     def test_token_with_wrong_secret_returns_401(self, client: TestClient, db: Session):
         user = User(
             email="wrongkey@test.com",
-            hashed_password="x",
+            hashed_password="Tes@1234",
             is_active=True,
             is_verified=True,
             role="admin",
@@ -256,7 +256,7 @@ class TestTokenSecurity:
         )
         resp = client.post(
             "/api/v1/admin/products",
-            json={"title": "x"},
+            json={"title": "Tes@1234"},
             headers={"Authorization": f"Bearer {wrong_key_token}"},
         )
         assert resp.status_code == 401
@@ -265,7 +265,7 @@ class TestTokenSecurity:
     def test_expired_token_on_create_returns_401(self, client: TestClient, db: Session):
         user = User(
             email="expired@test.com",
-            hashed_password="x",
+            hashed_password="Tes@1234",
             is_active=True,
             is_verified=True,
             role="admin",
@@ -278,7 +278,7 @@ class TestTokenSecurity:
         )
         resp = client.post(
             "/api/v1/admin/products",
-            json={"title": "x"},
+            json={"title": "Tes@1234"},
             headers={"Authorization": f"Bearer {expired_token}"},
         )
         assert resp.status_code == 401
@@ -288,7 +288,7 @@ class TestUserState:
     def test_signup_response_includes_role(self, client: TestClient):
         resp = client.post(
             "/api/v1/auth/signup",
-            json={"email": "rolecheck@test.com", "password": "pw123"},
+            json={"email": "rolecheck@test.com", "password": "Tes@1234"},
         )
         assert resp.status_code == 201
         assert resp.json()["role"] == "user"
@@ -296,7 +296,7 @@ class TestUserState:
     def test_signup_default_role_is_user_in_db(self, client: TestClient, db: Session):
         resp = client.post(
             "/api/v1/auth/signup",
-            json={"email": "dbrole@test.com", "password": "pw123"},
+            json={"email": "dbrole@test.com", "password": "Tes@1234"},
         )
         assert resp.status_code == 201
         user = db.query(User).filter(User.email == "dbrole@test.com").first()
@@ -305,7 +305,7 @@ class TestUserState:
     def test_inactive_user_login_fails(self, client: TestClient, db: Session):
         user = User(
             email="inactive@test.com",
-            hashed_password="x",
+            hashed_password="Tes@1234",
             is_active=False,
             is_verified=True,
         )
@@ -313,7 +313,7 @@ class TestUserState:
         db.commit()
         resp = client.post(
             "/api/v1/auth/login",
-            json={"email": "inactive@test.com", "password": "x"},
+            json={"email": "inactive@test.com", "password": "Tes@1234"},
         )
         assert resp.status_code == 400
         assert resp.json()["detail"] == "Invalid credentials"
@@ -321,7 +321,7 @@ class TestUserState:
     def test_verify_email_twice_returns_error(self, client: TestClient, db: Session):
         resp = client.post(
             "/api/v1/auth/signup",
-            json={"email": "verify2x@test.com", "password": "pw123"},
+            json={"email": "verify2x@test.com", "password": "Tes@1234"},
         )
         assert resp.status_code == 201
         user = db.query(User).filter(User.email == "verify2x@test.com").first()
@@ -335,11 +335,11 @@ class TestUserState:
     def test_login_with_unverified_email_fails(self, client: TestClient, db: Session):
         client.post(
             "/api/v1/auth/signup",
-            json={"email": "unverified@test.com", "password": "pw123"},
+            json={"email": "unverified@test.com", "password": "Tes@1234"},
         )
         resp = client.post(
             "/api/v1/auth/login",
-            json={"email": "unverified@test.com", "password": "pw123"},
+            json={"email": "unverified@test.com", "password": "Tes@1234"},
         )
         assert resp.status_code == 400
         assert resp.json()["detail"] == "Invalid credentials"
@@ -349,7 +349,7 @@ class TestAuthEdgeCases:
     def test_login_empty_password(self, client: TestClient, db: Session):
         user = User(
             email="emptypw@test.com",
-            hashed_password="x",
+            hashed_password="Tes@1234",
             is_active=True,
             is_verified=True,
         )
@@ -363,7 +363,7 @@ class TestAuthEdgeCases:
 
     def test_login_very_long_password(self, client: TestClient, db: Session):
         long_pw = "a" * 200
-        hashed = "x"
+        hashed = "Tes@1234"
         user = User(
             email="longpw@test.com",
             hashed_password=hashed,
@@ -384,7 +384,7 @@ class TestAuthEdgeCases:
         long_email = f"{local}@{domain}.com"
         resp = client.post(
             "/api/v1/auth/signup",
-            json={"email": long_email, "password": "pw123"},
+            json={"email": long_email, "password": "Tes@1234"},
         )
         assert resp.status_code == 201
 
@@ -398,7 +398,7 @@ class TestAuthEdgeCases:
     def test_signup_extra_fields_ignored(self, client: TestClient):
         resp = client.post(
             "/api/v1/auth/signup",
-            json={"email": "extra@test.com", "password": "pw123", "role": "admin"},
+            json={"email": "extra@test.com", "password": "Tes@1234", "role": "admin"},
         )
         assert resp.status_code == 201
         assert resp.json()["role"] == "user"
@@ -439,7 +439,7 @@ class TestUserProfile:
     def test_change_password(self, client: TestClient, db: Session):
         user = User(
             email="changepw@test.com",
-            hashed_password="x",
+            hashed_password="Tes@1234",
             is_active=True,
             is_verified=True,
         )
@@ -448,7 +448,7 @@ class TestUserProfile:
         db.refresh(user)
         # Override hashed_password with a real hash so verify_password works
         from app.core.security import get_password_hash
-        user.hashed_password = get_password_hash("oldpass123")
+        user.hashed_password = get_password_hash("Tes@1234")
         db.commit()
 
         token = create_access_token(subject=user.id, role=user.role)
@@ -456,7 +456,7 @@ class TestUserProfile:
 
         resp = client.put(
             "/api/v1/auth/users/me/password",
-            json={"current_password": "oldpass123", "new_password": "newpass456"},
+            json={"current_password": "Tes@1234", "new_password": "N3wP@ss!x"},
             headers=headers,
         )
         assert resp.status_code == 200
@@ -464,21 +464,21 @@ class TestUserProfile:
         # Verify old password no longer works
         login_resp = client.post(
             "/api/v1/auth/login",
-            json={"email": "changepw@test.com", "password": "oldpass123"},
+            json={"email": "changepw@test.com", "password": "Tes@1234"},
         )
         assert login_resp.status_code == 400
 
         # Verify new password works
         login_resp2 = client.post(
             "/api/v1/auth/login",
-            json={"email": "changepw@test.com", "password": "newpass456"},
+            json={"email": "changepw@test.com", "password": "N3wP@ss!x"},
         )
         assert login_resp2.status_code == 200
 
     def test_change_password_wrong_current(self, client: TestClient, user_token_headers):
         resp = client.put(
             "/api/v1/auth/users/me/password",
-            json={"current_password": "wrongpass", "new_password": "newpass456"},
+            json={"current_password": "wrongpass", "new_password": "Tes@1234"},
             headers=user_token_headers,
         )
         assert resp.status_code == 400
@@ -490,7 +490,7 @@ class TestUserProfile:
         for _ in range(MAX_R):
             resp = client.post(
                 "/api/v1/auth/login",
-                json={"email": "ratelimit-login@test.com", "password": "x"},
+                json={"email": "ratelimit-login@test.com", "password": "Tes@1234"},
             )
             if resp.status_code == 429:
                 got_429 = True
@@ -503,7 +503,7 @@ class TestUserProfile:
         for i in range(MAX_R):
             resp = client.post(
                 "/api/v1/auth/signup",
-                json={"email": f"ratelimit-signup{i}@test.com", "password": "str0ng!pass"},
+                json={"email": f"ratelimit-signup{i}@test.com", "password": "Str0ng!pass"},
             )
             if resp.status_code == 429:
                 got_429 = True
@@ -511,7 +511,7 @@ class TestUserProfile:
         assert got_429, f"Rate limiter did not trigger after {MAX_R} signup requests"
 
     def test_rate_limiting_on_change_password(self, client: TestClient, db: Session):
-        user = User(email="ratepw@test.com", hashed_password="x", is_active=True, is_verified=True)
+        user = User(email="ratepw@test.com", hashed_password="Tes@1234", is_active=True, is_verified=True)
         db.add(user)
         db.commit()
         token = create_access_token(subject=user.id, role="user")
@@ -521,7 +521,7 @@ class TestUserProfile:
         for _ in range(MAX_R):
             resp = client.put(
                 "/api/v1/auth/users/me/password",
-                json={"current_password": "wrong", "new_password": "newpass456"},
+                json={"current_password": "wrong", "new_password": "Tes@1234"},
                 headers=headers,
             )
             if resp.status_code == 429:
