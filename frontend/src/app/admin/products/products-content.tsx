@@ -6,10 +6,18 @@ import type { Product } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { useState, useMemo } from "react"
-import { Search, Pencil, Trash2 } from "lucide-react"
+import { useState } from "react"
+import { Pencil, Trash2 } from "lucide-react"
+import { AdminPageShell } from "@/components/admin/page-shell"
+import { AdminSearchInput } from "@/components/admin/search-input"
+import { AdminTableSkeleton } from "@/components/admin/table-skeleton"
+import { AdminEmptyState } from "@/components/admin/empty-state"
+import { AdminPagination } from "@/components/admin/pagination"
+import { DeleteConfirmDialog } from "@/components/admin/delete-dialog"
+import { buildSortParams } from "@/lib/filter-utils"
 
 const LIMIT = 20
 
@@ -17,15 +25,31 @@ export default function ProductsContent() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
+  const [sort, setSort] = useState("default")
+  const [minRating, setMinRating] = useState(0)
+  const [minDiscount, setMinDiscount] = useState(0)
+  const [isFeatured, setIsFeatured] = useState<boolean | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
-  const [editForm, setEditForm] = useState({ price: 0, stock: 0, discount_percentage: 0, is_featured: false })
+  const [editForm, setEditForm] = useState({ price: "", stock: "", discount_percentage: "", is_featured: false })
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({})
+
+  const sortParams = buildSortParams(sort)
+  const skip = (page - 1) * LIMIT
+
+  let filterParams = ""
+  if (minRating > 0) filterParams += `&min_rating=${minRating}`
+  if (minDiscount > 0) filterParams += `&min_discount=${minDiscount}`
+  if (isFeatured !== null) filterParams += `&is_featured=${isFeatured}`
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-products", search, page],
-    queryFn: () => search.trim()
-      ? api.get<{ products: Product[]; total: number }>(`/products/search?q=${encodeURIComponent(search)}&skip=${(page - 1) * LIMIT}&limit=${LIMIT}`)
-      : api.get<{ products: Product[]; total: number }>(`/products?skip=${(page - 1) * LIMIT}&limit=${LIMIT}`),
+    queryKey: ["admin-products", search, page, sort, minRating, minDiscount, isFeatured],
+    queryFn: () => {
+      const base = search.trim()
+        ? `/products/search?q=${encodeURIComponent(search)}&skip=${skip}&limit=${LIMIT}`
+        : `/products?skip=${skip}&limit=${LIMIT}`
+      return api.get<{ products: Product[]; total: number }>(base + sortParams + filterParams)
+    },
   })
 
   const products = data?.products || []
@@ -42,6 +66,18 @@ export default function ProductsContent() {
     onError: (err: Error) => toast.error(err.message),
   })
 
+  const validateEditForm = () => {
+    const errors: Record<string, string> = {}
+    const price = parseFloat(editForm.price)
+    if (isNaN(price) || price < 0) errors.price = "Must be a valid positive number"
+    const stock = parseInt(editForm.stock, 10)
+    if (isNaN(stock) || stock < 0) errors.stock = "Must be a valid non-negative integer"
+    const discount = parseFloat(editForm.discount_percentage)
+    if (isNaN(discount) || discount < 0 || discount > 100) errors.discount_percentage = "Must be 0–100"
+    setEditErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: { id: number; price: number; stock: number; discount_percentage: number; is_featured: boolean }) =>
       api.put(`/admin/products/${id}`, data),
@@ -53,19 +89,58 @@ export default function ProductsContent() {
     onError: (err: Error) => toast.error(err.message),
   })
 
-  return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Products</h1>
+  const getDiscount = (p: Product) => p.discountPercentage ?? p.discount_percentage ?? 0
+  const getFeatured = (p: Product) => p.is_featured
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search products..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+  return (
+    <AdminPageShell title="Products">
+      <div className="flex flex-wrap items-center gap-3">
+        <AdminSearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Search products..." />
+        <select
+          value={sort}
+          onChange={(e) => { setSort(e.target.value); setPage(1) }}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-amazon-link"
+        >
+          <option value="default">Default</option>
+          <option value="price-asc">Price: Low to High</option>
+          <option value="price-desc">Price: High to Low</option>
+          <option value="rating">Top Rated</option>
+          <option value="title-asc">Title A–Z</option>
+          <option value="title-desc">Title Z–A</option>
+          <option value="discount">Biggest Discount</option>
+        </select>
+        <select
+          value={minRating}
+          onChange={(e) => { setMinRating(Number(e.target.value)); setPage(1) }}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-amazon-link"
+        >
+          <option value={0}>Any rating</option>
+          <option value={4}>4★ & up</option>
+          <option value={3}>3★ & up</option>
+          <option value={2}>2★ & up</option>
+          <option value={1}>1★ & up</option>
+        </select>
+        <select
+          value={minDiscount}
+          onChange={(e) => { setMinDiscount(Number(e.target.value)); setPage(1) }}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-amazon-link"
+        >
+          <option value={0}>Any discount</option>
+          <option value={10}>10%+ off</option>
+          <option value={20}>20%+ off</option>
+          <option value={30}>30%+ off</option>
+          <option value={50}>50%+ off</option>
+        </select>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={isFeatured === true} onChange={(e) => { setIsFeatured(e.target.checked ? true : null); setPage(1) }} />
+          Featured only
+        </label>
       </div>
 
       {isLoading ? (
-        <div className="h-64 animate-pulse rounded-lg bg-muted" />
+        <AdminTableSkeleton rows={5} />
       ) : products.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No products found.</p>
+        <AdminEmptyState label="products" />
       ) : (
         <Table>
           <TableHeader>
@@ -86,32 +161,26 @@ export default function ProductsContent() {
                 <TableCell className="text-muted-foreground">{p.id}</TableCell>
                 <TableCell className="font-medium">{p.title}</TableCell>
                 <TableCell className="text-right">₹{p.price.toFixed(2)}</TableCell>
-                <TableCell className="text-right">{(p.discountPercentage ?? p.discount_percentage ?? 0) > 0 ? `${p.discountPercentage ?? p.discount_percentage ?? 0}%` : "—"}</TableCell>
+                <TableCell className="text-right">{getDiscount(p) > 0 ? `${getDiscount(p)}%` : "—"}</TableCell>
                 <TableCell className="text-right">{p.stock}</TableCell>
-                <TableCell className="text-center">{p.is_featured ? "✓" : "✗"}</TableCell>
+                <TableCell className="text-center">{getFeatured(p) ? "✓" : "✗"}</TableCell>
                 <TableCell className="text-right">★{p.rating.toFixed(1)}</TableCell>
                 <TableCell className="flex gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => { setEditProduct(p); setEditForm({ price: p.price, stock: p.stock, discount_percentage: p.discountPercentage ?? p.discount_percentage ?? 0, is_featured: p.is_featured }) }}>
+                  <Button variant="ghost" size="icon" onClick={() => {
+                    setEditProduct(p)
+                    setEditForm({
+                      price: String(p.price),
+                      stock: String(p.stock),
+                      discount_percentage: String(getDiscount(p)),
+                      is_featured: getFeatured(p),
+                    })
+                    setEditErrors({})
+                  }}>
                     <Pencil className="h-4 w-4" />
                   </Button>
-
-                  <Dialog open={deleteId === p.id} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(p.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Delete Product</DialogTitle>
-                        <DialogDescription>Are you sure you want to delete &quot;{p.title}&quot;?</DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-                        <Button variant="destructive" onClick={() => deleteMutation.mutate(p.id)} disabled={deleteMutation.isPending}>
-                          {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <Button variant="ghost" size="icon" onClick={() => setDeleteId(p.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -119,15 +188,16 @@ export default function ProductsContent() {
         </Table>
       )}
 
-      {data && totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Page {page} of {totalPages}</span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-          </div>
-        </div>
-      )}
+      <AdminPagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+      <DeleteConfirmDialog
+        open={deleteId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteId(null) }}
+        title="Delete Product"
+        description={deleteId ? `Are you sure you want to delete product #${deleteId}?` : ""}
+        onConfirm={() => deleteMutation.mutate(deleteId!)}
+        disabled={deleteMutation.isPending}
+      />
 
       {/* Edit dialog */}
       <Dialog open={editProduct !== null} onOpenChange={(open) => { if (!open) setEditProduct(null) }}>
@@ -139,31 +209,54 @@ export default function ProductsContent() {
           {editProduct && (
             <div className="space-y-4 py-2">
               <div>
-                <label className="text-sm font-medium">Price (₹)</label>
-                <input type="number" step="0.01" value={editForm.price} onChange={(e) => setEditForm((f) => ({ ...f, price: parseFloat(e.target.value) || 0 }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-amazon-link" />
+                <Label htmlFor="edit-price">Price (₹)</Label>
+                <Input id="edit-price" type="number" step="0.01" min="0"
+                  value={editForm.price}
+                  onChange={(e) => setEditForm((f) => ({ ...f, price: e.target.value }))}
+                />
+                {editErrors.price && <p className="mt-1 text-xs text-destructive">{editErrors.price}</p>}
               </div>
               <div>
-                <label className="text-sm font-medium">Discount (%)</label>
-                <input type="number" min="0" max="100" value={editForm.discount_percentage} onChange={(e) => setEditForm((f) => ({ ...f, discount_percentage: parseInt(e.target.value) || 0 }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-amazon-link" />
+                <Label htmlFor="edit-discount">Discount (%)</Label>
+                <Input id="edit-discount" type="number" min="0" max="100"
+                  value={editForm.discount_percentage}
+                  onChange={(e) => setEditForm((f) => ({ ...f, discount_percentage: e.target.value }))}
+                />
+                {editErrors.discount_percentage && <p className="mt-1 text-xs text-destructive">{editErrors.discount_percentage}</p>}
               </div>
               <div>
-                <label className="text-sm font-medium">Stock</label>
-                <input type="number" min="0" value={editForm.stock} onChange={(e) => setEditForm((f) => ({ ...f, stock: parseInt(e.target.value) || 0 }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-amazon-link" />
+                <Label htmlFor="edit-stock">Stock</Label>
+                <Input id="edit-stock" type="number" min="0"
+                  value={editForm.stock}
+                  onChange={(e) => setEditForm((f) => ({ ...f, stock: e.target.value }))}
+                />
+                {editErrors.stock && <p className="mt-1 text-xs text-destructive">{editErrors.stock}</p>}
               </div>
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="featured" checked={editForm.is_featured} onChange={(e) => setEditForm((f) => ({ ...f, is_featured: e.target.checked }))} />
-                <label htmlFor="featured" className="text-sm font-medium">Featured</label>
+                <input type="checkbox" id="featured" checked={editForm.is_featured}
+                  onChange={(e) => setEditForm((f) => ({ ...f, is_featured: e.target.checked }))}
+                />
+                <Label htmlFor="featured">Featured</Label>
               </div>
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditProduct(null)}>Cancel</Button>
-            <Button onClick={() => updateMutation.mutate({ id: editProduct!.id, ...editForm })} disabled={updateMutation.isPending}>
+            <Button onClick={() => {
+              if (!validateEditForm()) return
+              updateMutation.mutate({
+                id: editProduct!.id,
+                price: parseFloat(editForm.price),
+                stock: parseInt(editForm.stock, 10),
+                discount_percentage: parseFloat(editForm.discount_percentage),
+                is_featured: editForm.is_featured,
+              })
+            }} disabled={updateMutation.isPending}>
               {updateMutation.isPending ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminPageShell>
   )
 }

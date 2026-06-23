@@ -31,8 +31,9 @@ def get_price_range(
 def get_products(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1),
-    sort_by: str = Query("", pattern="^(|price|rating)$"),
+    sort_by: str = Query("", pattern="^(|price|rating|title|discount|created_at)$"),
     sort_order: str = Query("asc", pattern="^(asc|desc)$"),
+    category_id: int | None = Query(None),
     min_price: float | None = Query(None, ge=0),
     max_price: float | None = Query(None, ge=0),
     min_rating: float | None = Query(None, ge=0, le=5),
@@ -42,6 +43,7 @@ def get_products(
 ):
     products, total = product_service.list_products(
         db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order,
+        category_id=category_id,
         min_price=min_price, max_price=max_price, min_rating=min_rating,
         min_discount=min_discount, is_featured=is_featured,
     )
@@ -59,19 +61,20 @@ def search_products(
     category_id: int | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1),
-    sort_by: str = Query("", pattern="^(|price|rating)$"),
+    sort_by: str = Query("", pattern="^(|price|rating|title|discount|created_at)$"),
     sort_order: str = Query("asc", pattern="^(asc|desc)$"),
     min_price: float | None = Query(None, ge=0),
     max_price: float | None = Query(None, ge=0),
     min_rating: float | None = Query(None, ge=0, le=5),
     min_discount: float | None = Query(None, ge=0, le=100),
+    is_featured: bool | None = Query(None),
     db: Session = Depends(get_db),
 ):
     products, total = product_service.search_products(
         db, q=q, category_id=category_id, skip=skip, limit=limit,
         sort_by=sort_by, sort_order=sort_order,
         min_price=min_price, max_price=max_price, min_rating=min_rating,
-        min_discount=min_discount,
+        min_discount=min_discount, is_featured=is_featured,
     )
     return ProductsResponse(products=products, total=total, skip=skip, limit=limit)
 

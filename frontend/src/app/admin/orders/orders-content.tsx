@@ -4,11 +4,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import type { Order, AdminOrdersResponse } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search } from "lucide-react"
 import { toast } from "sonner"
 import { useState, Fragment, useMemo } from "react"
+import { AdminPageShell } from "@/components/admin/page-shell"
+import { AdminSearchInput } from "@/components/admin/search-input"
+import { AdminTableSkeleton } from "@/components/admin/table-skeleton"
+import { AdminEmptyState } from "@/components/admin/empty-state"
+import { AdminPagination } from "@/components/admin/pagination"
 
 const statusColors: Record<string, string> = {
   PAID: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -28,7 +31,7 @@ export default function OrdersContent() {
   const [page, setPage] = useState(1)
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-orders", search, page],
+    queryKey: ["admin-orders", page],
     queryFn: () => api.get<AdminOrdersResponse>(
       `/admin/orders?skip=${(page - 1) * ORDER_LIMIT}&limit=${ORDER_LIMIT}`,
     ),
@@ -60,18 +63,13 @@ export default function OrdersContent() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Orders</h1>
-
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search orders..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-      </div>
+    <AdminPageShell title="Orders">
+      <AdminSearchInput value={search} onChange={setSearch} placeholder="Search orders..." />
 
       {isLoading ? (
-        <div className="h-64 animate-pulse rounded-lg bg-muted" />
+        <AdminTableSkeleton rows={5} />
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No orders found.</p>
+        <AdminEmptyState label="orders" />
       ) : (
         <Table>
           <TableHeader>
@@ -128,15 +126,7 @@ export default function OrdersContent() {
         </Table>
       )}
 
-      {data && totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Page {page} of {totalPages}</span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-          </div>
-        </div>
-      )}
-    </div>
+      <AdminPagination page={page} totalPages={totalPages} onPageChange={setPage} />
+    </AdminPageShell>
   )
 }

@@ -44,7 +44,7 @@ def get_products_by_category(
     category_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1),
-    sort_by: str = Query("", pattern="^(|price|rating)$"),
+    sort_by: str = Query("", pattern="^(|price|rating|title|discount|created_at)$"),
     sort_order: str = Query("asc", pattern="^(asc|desc)$"),
     min_price: float | None = Query(None, ge=0),
     max_price: float | None = Query(None, ge=0),

@@ -4,12 +4,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import type { Review, AdminReviewsResponse } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useState } from "react"
-import { Search, Trash2, Star } from "lucide-react"
+import { Trash2, Star } from "lucide-react"
+import { AdminPageShell } from "@/components/admin/page-shell"
+import { AdminSearchInput } from "@/components/admin/search-input"
+import { AdminTableSkeleton } from "@/components/admin/table-skeleton"
+import { AdminEmptyState } from "@/components/admin/empty-state"
+import { AdminPagination } from "@/components/admin/pagination"
+import { DeleteConfirmDialog } from "@/components/admin/delete-dialog"
 
 const REVIEW_LIMIT = 20
 
@@ -21,9 +24,11 @@ export default function ReviewsContent() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-reviews", search, page],
-    queryFn: () => api.get<AdminReviewsResponse>(
-      `/admin/reviews?page=${page}&per_page=${REVIEW_LIMIT}${search ? `&product_id=${search}` : ""}`,
-    ),
+    queryFn: () => {
+      let url = `/admin/reviews?page=${page}&per_page=${REVIEW_LIMIT}`
+      if (search.trim()) url += `&product_id=${search.trim()}`
+      return api.get<AdminReviewsResponse>(url)
+    },
   })
 
   const reviews = data?.reviews || []
@@ -41,18 +46,13 @@ export default function ReviewsContent() {
   })
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Reviews</h1>
-
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search by product ID..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-9" />
-      </div>
+    <AdminPageShell title="Reviews">
+      <AdminSearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Search by product ID..." />
 
       {isLoading ? (
-        <div className="h-64 animate-pulse rounded-lg bg-muted" />
+        <AdminTableSkeleton rows={5} />
       ) : !reviews?.length ? (
-        <p className="text-sm text-muted-foreground">No reviews found.</p>
+        <AdminEmptyState label="reviews" />
       ) : (
         <Table>
           <TableHeader>
@@ -84,23 +84,9 @@ export default function ReviewsContent() {
                   {new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                 </TableCell>
                 <TableCell>
-                  <Dialog open={deleteId === r.id} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(r.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Delete Review</DialogTitle>
-                        <DialogDescription>Delete this review? This will recalculate the product&apos;s rating.</DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-                        <Button variant="destructive" onClick={() => deleteMutation.mutate(r.id)} disabled={deleteMutation.isPending}>
-                          {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <button onClick={() => setDeleteId(r.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </button>
                 </TableCell>
               </TableRow>
             ))}
@@ -108,15 +94,16 @@ export default function ReviewsContent() {
         </Table>
       )}
 
-      {data && totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Page {page} of {totalPages}</span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-          </div>
-        </div>
-      )}
-    </div>
+      <AdminPagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+      <DeleteConfirmDialog
+        open={deleteId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteId(null) }}
+        title="Delete Review"
+        description="Delete this review? This will recalculate the product's rating."
+        onConfirm={() => deleteMutation.mutate(deleteId!)}
+        disabled={deleteMutation.isPending}
+      />
+    </AdminPageShell>
   )
 }

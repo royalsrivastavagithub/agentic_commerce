@@ -17,6 +17,22 @@ describe("buildSortParams", () => {
   it("returns rating desc params", () => {
     expect(buildSortParams("rating")).toBe("&sort_by=rating&sort_order=desc")
   })
+
+  it("returns title asc params", () => {
+    expect(buildSortParams("title-asc")).toBe("&sort_by=title&sort_order=asc")
+  })
+
+  it("returns title desc params", () => {
+    expect(buildSortParams("title-desc")).toBe("&sort_by=title&sort_order=desc")
+  })
+
+  it("returns discount desc params", () => {
+    expect(buildSortParams("discount")).toBe("&sort_by=discount&sort_order=desc")
+  })
+
+  it("returns empty for unknown sort", () => {
+    expect(buildSortParams("unknown")).toBe("")
+  })
 })
 
 describe("buildFilterParams", () => {

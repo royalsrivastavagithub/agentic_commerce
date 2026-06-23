@@ -10,6 +10,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from "sonner"
 import { useState, useMemo } from "react"
 import { Search, Pencil, Trash2, Plus } from "lucide-react"
+import { AdminPageShell } from "@/components/admin/page-shell"
+import { AdminTableSkeleton } from "@/components/admin/table-skeleton"
+import { AdminEmptyState } from "@/components/admin/empty-state"
+import { DeleteConfirmDialog } from "@/components/admin/delete-dialog"
 
 export default function CategoriesContent() {
   const queryClient = useQueryClient()
@@ -64,37 +68,35 @@ export default function CategoriesContent() {
   }, [categories, catSearch])
 
   return (
-    <div className="space-y-4">
+    <AdminPageShell title="Categories">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Categories</h1>
-        <div className="flex items-center gap-2">
-          <div className="relative max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search categories..." value={catSearch} onChange={(e) => setCatSearch(e.target.value)} className="pl-9 h-9 text-sm" />
-          </div>
-          <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="mr-1 h-4 w-4" /> Add Category</Button>
+        <div className="relative max-w-xs">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input placeholder="Search categories..." value={catSearch} onChange={(e) => setCatSearch(e.target.value)} className="pl-9 h-9 text-sm" />
         </div>
-        <Dialog open={showCreate} onOpenChange={setShowCreate}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Category</DialogTitle>
-              <DialogDescription>Enter a name for the new category.</DialogDescription>
-            </DialogHeader>
-            <Input value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Category name" />
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button onClick={() => createMutation.mutate(createName)} disabled={!createName.trim() || createMutation.isPending}>
-                {createMutation.isPending ? "Creating..." : "Create"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="mr-1 h-4 w-4" /> Add Category</Button>
       </div>
 
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Category</DialogTitle>
+            <DialogDescription>Enter a name for the new category.</DialogDescription>
+          </DialogHeader>
+          <Input value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Category name" />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button onClick={() => createMutation.mutate(createName)} disabled={!createName.trim() || createMutation.isPending}>
+              {createMutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {isLoading ? (
-        <div className="h-64 animate-pulse rounded-lg bg-muted" />
+        <AdminTableSkeleton rows={5} />
       ) : cats.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No categories found.</p>
+        <AdminEmptyState label="categories" />
       ) : (
         <Table>
           <TableHeader>
@@ -121,7 +123,7 @@ export default function CategoriesContent() {
                       </DialogHeader>
                       <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => {}}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
                         <Button onClick={() => updateMutation.mutate({ id: c.id, name: editName })} disabled={!editName.trim() || updateMutation.isPending}>
                           {updateMutation.isPending ? "Saving..." : "Save"}
                         </Button>
@@ -129,29 +131,24 @@ export default function CategoriesContent() {
                     </DialogContent>
                   </Dialog>
 
-                  <Dialog open={deleteId === c.id} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(c.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Delete Category</DialogTitle>
-                        <DialogDescription>Delete &quot;{c.name}&quot;? This cannot be undone if products reference it.</DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
-                        <Button variant="destructive" onClick={() => deleteMutation.mutate(c.id)} disabled={deleteMutation.isPending}>
-                          {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <Button variant="ghost" size="icon" onClick={() => setDeleteId(c.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
-    </div>
+
+      <DeleteConfirmDialog
+        open={deleteId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteId(null) }}
+        title="Delete Category"
+        description={deleteId ? `Delete category? This cannot be undone if products reference it.` : ""}
+        onConfirm={() => deleteMutation.mutate(deleteId!)}
+        disabled={deleteMutation.isPending}
+      />
+    </AdminPageShell>
   )
 }

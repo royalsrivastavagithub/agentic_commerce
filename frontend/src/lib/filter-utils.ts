@@ -3,6 +3,9 @@ export function buildSortParams(sort: string): string {
   if (sort === "price-asc") return "&sort_by=price&sort_order=asc"
   if (sort === "price-desc") return "&sort_by=price&sort_order=desc"
   if (sort === "rating") return "&sort_by=rating&sort_order=desc"
+  if (sort === "title-asc") return "&sort_by=title&sort_order=asc"
+  if (sort === "title-desc") return "&sort_by=title&sort_order=desc"
+  if (sort === "discount") return "&sort_by=discount&sort_order=desc"
   return ""
 }
 

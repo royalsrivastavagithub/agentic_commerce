@@ -5,11 +5,16 @@ import { api } from "@/lib/api-client"
 import type { AdminUserResponse, AdminUsersResponse } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useState } from "react"
-import { Search, Shield, Ban, Trash2 } from "lucide-react"
+import { Shield, Trash2 } from "lucide-react"
+import { AdminPageShell } from "@/components/admin/page-shell"
+import { AdminSearchInput } from "@/components/admin/search-input"
+import { AdminTableSkeleton } from "@/components/admin/table-skeleton"
+import { AdminEmptyState } from "@/components/admin/empty-state"
+import { AdminPagination } from "@/components/admin/pagination"
+import { DeleteConfirmDialog } from "@/components/admin/delete-dialog"
 
 export default function UsersContent() {
   const queryClient = useQueryClient()
@@ -50,23 +55,13 @@ export default function UsersContent() {
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 1
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Users</h1>
-
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search users..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-          className="pl-9"
-        />
-      </div>
+    <AdminPageShell title="Users">
+      <AdminSearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Search users..." />
 
       {isLoading ? (
-        <div className="h-64 animate-pulse rounded-lg bg-muted" />
+        <AdminTableSkeleton rows={5} />
       ) : users.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No users found.</p>
+        <AdminEmptyState label="users" />
       ) : (
         <Table>
           <TableHeader>
@@ -131,23 +126,9 @@ export default function UsersContent() {
                     </DialogContent>
                   </Dialog>
 
-                  <Dialog open={deleteId === u.id} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(u.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Delete User</DialogTitle>
-                        <DialogDescription>Delete {u.email}? This cannot be undone.</DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => {}}>Cancel</Button>
-                        <Button variant="destructive" onClick={() => deleteMutation.mutate(u.id)} disabled={deleteMutation.isPending}>
-                          {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <Button variant="ghost" size="icon" onClick={() => setDeleteId(u.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -155,15 +136,16 @@ export default function UsersContent() {
         </Table>
       )}
 
-      {data && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Page {page} of {totalPages}</span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-          </div>
-        </div>
-      )}
-    </div>
+      <AdminPagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+      <DeleteConfirmDialog
+        open={deleteId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteId(null) }}
+        title="Delete User"
+        description={deleteId ? `Delete user #${deleteId}? This cannot be undone.` : ""}
+        onConfirm={() => deleteMutation.mutate(deleteId!)}
+        disabled={deleteMutation.isPending}
+      />
+    </AdminPageShell>
   )
 }
