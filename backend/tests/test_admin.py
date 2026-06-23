@@ -378,6 +378,24 @@ class TestAdminOrders:
         )
         assert resp.status_code == 404
 
+    def test_list_orders_pagination(self, client: TestClient, db: Session):
+        admin = _create_admin(db)
+        user = _create_user(db)
+        cat_id = _create_category(db)
+        for i in range(5):
+            p = _create_product(db, cat_id, {"sku": f"ADMPAG-{i}", "title": f"P{i}"})
+            _create_order(db, user.id, p.id, total=100.0 + i)
+
+        resp = client.get("/api/v1/admin/orders?skip=0&limit=2", headers=_token(admin))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["orders"]) == 2
+        assert data["total"] == 5
+        assert data["skip"] == 0
+        assert data["limit"] == 2
+
+
+
 
 # ─── Admin Dashboard ────────────────────────────────────────────────
 
@@ -561,3 +579,31 @@ class TestAdminDashboard:
         resp = client.get("/api/v1/admin/reviews?user_id=99999", headers=_token(admin))
         data = resp.json()
         assert data["reviews"] == []
+
+
+# ─── Cascade Deletes ────────────────────────────────────────────────
+
+class TestCascadeDeletes:
+    def test_delete_user_with_orders_deletes_orders(self, client: TestClient, db: Session):
+        admin = _create_admin(db)
+        user = _create_user(db, "cascade-order@test.com")
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id)
+        _create_order(db, user.id, product.id)
+
+        assert db.query(Order).filter(Order.user_id == user.id).count() > 0
+
+        client.delete(f"/api/v1/admin/users/{user.id}", headers=_token(admin))
+
+        assert db.query(Order).filter(Order.user_id == user.id).count() == 0
+        assert db.query(User).filter(User.id == user.id).first() is None
+
+    def test_delete_product_removes_from_database(self, client: TestClient, db: Session):
+        admin = _create_admin(db)
+        cat_id = _create_category(db)
+        product = _create_product(db, cat_id, {"sku": "CASCADE-CART"})
+
+        resp = client.delete(f"/api/v1/admin/products/{product.id}", headers=_token(admin))
+        assert resp.status_code == 204
+
+        assert db.query(Product).filter(Product.id == product.id).first() is None

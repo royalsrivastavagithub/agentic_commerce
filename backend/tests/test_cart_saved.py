@@ -101,6 +101,24 @@ def _add_cart_item(client: TestClient, product_id: int, token: str, qty: int = 1
     return resp.json()
 
 
+class TestAuthz:
+    def test_get_saved_without_auth_returns_401(self, client: TestClient):
+        resp = client.get("/api/v1/cart/saved")
+        assert resp.status_code == 401
+
+    def test_save_item_without_auth_returns_401(self, client: TestClient):
+        resp = client.post("/api/v1/cart/saved", json={"cart_item_id": 1})
+        assert resp.status_code == 401
+
+    def test_move_to_cart_without_auth_returns_401(self, client: TestClient):
+        resp = client.post("/api/v1/cart/saved/1/move-to-cart")
+        assert resp.status_code == 401
+
+    def test_remove_saved_without_auth_returns_401(self, client: TestClient):
+        resp = client.delete("/api/v1/cart/saved/1")
+        assert resp.status_code == 401
+
+
 class TestSaveForLater:
 
     def test_save_cart_item_moves_to_saved(self, client, db):

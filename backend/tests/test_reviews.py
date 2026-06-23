@@ -130,6 +130,58 @@ class TestCreateReview:
         assert data["user"]["id"] is not None
         assert "user" in data
 
+    def test_cannot_review_without_purchase_returns_403(self, client: TestClient, db: Session):
+        user = User(
+            email="nopurchase@test.com",
+            hashed_password="x",
+            is_active=True,
+            is_verified=True,
+            role="user",
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        token = create_access_token(subject=user.id, role=user.role)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        cat = Category(name="nopurchase-cat")
+        db.add(cat)
+        db.commit()
+        db.refresh(cat)
+
+        product = Product(
+            title="No Purchase Product",
+            description="test",
+            category_id=cat.id,
+            price=10.0,
+            discount_percentage=0,
+            rating=0,
+            review_count=0,
+            stock=10,
+            tags=[],
+            sku="NOPURCHASE",
+            weight=1,
+            dimensions={"width": 1, "height": 1, "depth": 1},
+            warranty_information="1y",
+            shipping_information="fast",
+            availability_status="In Stock",
+            return_policy="30d",
+            minimum_order_quantity=1,
+            meta={"createdAt": "", "updatedAt": "", "barcode": "", "qrCode": ""},
+            images=[],
+            thumbnail="https://example.com/thumb.jpg",
+        )
+        db.add(product)
+        db.commit()
+        db.refresh(product)
+
+        resp = client.post(
+            f"/api/v1/products/{product.id}/reviews",
+            json={"rating": 4, "comment": "Never bought this"},
+            headers=headers,
+        )
+        assert resp.status_code == 403
+
     def test_duplicate_review_returns_409(self, client: TestClient, db: Session):
         _, headers, product = _setup(db)
         client.post(

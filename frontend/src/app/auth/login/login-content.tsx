@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { GoogleLogin } from "@react-oauth/google"
@@ -13,6 +13,24 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
+
+function GoogleLoginButton({ onSuccess }: { onSuccess: (credentialResponse: { credential?: string }) => void }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setMounted(true), 0)
+    return () => clearTimeout(timer)
+  }, [])
+  if (!mounted) return <div className="h-10" />
+  return (
+    <GoogleLogin
+      onSuccess={onSuccess}
+      onError={() => toast.error("Google popup failed — check that your email is added as a test user at https://console.cloud.google.com/apis/credentials/consent")}
+      size="large"
+      shape="rectangular"
+      width={320}
+    />
+  )
+}
 
 export default function LoginContent() {
   const [email, setEmail] = useState("")
@@ -36,7 +54,7 @@ export default function LoginContent() {
     }
   }
 
-  const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
+  const handleGoogleSuccess = useCallback(async (credentialResponse: { credential?: string }) => {
     if (!credentialResponse.credential) return
     try {
       const data = await api.post<LoginResponse>("/auth/google", { id_token: credentialResponse.credential })
@@ -47,7 +65,7 @@ export default function LoginContent() {
       console.error("Google sign-in error:", err)
       toast.error(err instanceof Error ? err.message : "Google sign-in failed")
     }
-  }
+  }, [login, router])
 
   return (
     <Shell>
@@ -59,13 +77,7 @@ export default function LoginContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-center">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={() => toast.error("Google popup failed — check that your email is added as a test user at https://console.cloud.google.com/apis/credentials/consent")}
-                size="large"
-                shape="rectangular"
-                width={320}
-              />
+              <GoogleLoginButton onSuccess={handleGoogleSuccess} />
             </div>
 
             <div className="relative">
