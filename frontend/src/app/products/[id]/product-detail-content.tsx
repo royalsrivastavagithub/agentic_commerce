@@ -298,7 +298,6 @@ export default function ProductDetailContent() {
               { label: "Brand", value: product.brand },
               { label: "Weight", value: `${product.weight} g` },
               { label: "Dimensions", value: `${product.dimensions.width} × ${product.dimensions.height} × ${product.dimensions.depth} cm` },
-              { label: "Min. Order", value: `${product.minimum_order_quantity}` },
               { label: "Availability", value: product.availability_status },
               { label: "Shipping", value: product.shipping_information },
               { label: "Warranty", value: product.warranty_information },
