@@ -51,6 +51,10 @@ export default function SignupContent() {
     if (!form.password) errs.password = "Password is required"
     else if (form.password.length < 8 || form.password.length > 16) errs.password = "Password must be 8–16 characters"
     else if (!PASSWORD_REGEX.test(form.password)) errs.password = "Must include uppercase, lowercase, digit, and symbol"
+    if (!form.phone?.trim()) errs.phone = "Phone is required"
+    if (!form.date_of_birth || !/^\d{4}-\d{2}-\d{2}$/.test(form.date_of_birth)) errs.date_of_birth = "Date of birth is required"
+    if (!form.gender) errs.gender = "Please select a gender"
+
     return errs
   }
 
@@ -137,7 +141,7 @@ export default function SignupContent() {
                   onBlur={() => markTouched("email")}
                 />
               </FieldWrap>
-              <FieldWrap label="Phone" error={showError("phone") ? errors.phone : undefined}>
+              <FieldWrap label="Phone *" error={showError("phone") ? errors.phone : undefined}>
                 <Input
                   id="phone"
                   type="tel"
@@ -147,7 +151,7 @@ export default function SignupContent() {
                 />
               </FieldWrap>
               <div className="grid grid-cols-2 gap-4">
-                <FieldWrap label="Date of Birth" error={showError("date_of_birth") ? errors.date_of_birth : undefined}>
+                <FieldWrap label="Date of Birth *" error={showError("date_of_birth") ? errors.date_of_birth : undefined}>
                   <div className="flex items-center gap-1">
                     <input
                       type="text" inputMode="numeric" maxLength={2} placeholder="DD"
@@ -209,19 +213,20 @@ export default function SignupContent() {
                     </Popover>
                   </div>
                 </FieldWrap>
-                <div className="space-y-2">
-                  <Label htmlFor="gender">Gender</Label>
+                <FieldWrap label="Gender *" error={showError("gender") ? errors.gender : undefined}>
                   <select
                     id="gender"
                     value={form.gender}
-                    onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}
+                    onChange={(e) => { setForm((f) => ({ ...f, gender: e.target.value })); setErrors((prev) => ({ ...prev, gender: undefined })) }}
+                    onBlur={() => markTouched("gender")}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-amazon-link"
                   >
-                    <option value="">Prefer not to say</option>
+                    <option value="">Select</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
+                    <option value="unspecified">Prefer not to say</option>
                   </select>
-                </div>
+                </FieldWrap>
               </div>
               <FieldWrap label="Password *" error={showError("password") ? errors.password : undefined}>
                 <Input
