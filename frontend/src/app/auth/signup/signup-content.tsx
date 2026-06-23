@@ -8,10 +8,6 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
 import { toast } from "sonner"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 
@@ -207,24 +203,6 @@ export default function SignupContent() {
                       onBlur={() => markTouched("date_of_birth")}
                       className="w-14 rounded border border-input bg-background px-2 py-2 text-sm text-center outline-none focus:border-amazon-link dark:border-border dark:bg-card"
                     />
-                    <Popover>
-                      <PopoverTrigger className="flex h-8 w-8 items-center justify-center text-muted-foreground hover:text-foreground rounded-md hover:bg-accent shrink-0">
-                        <CalendarIcon className="h-4 w-4" />
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="end">
-                        <Calendar
-                          mode="single"
-                          selected={form.date_of_birth && /^\d{4}-\d{2}-\d{2}$/.test(form.date_of_birth) ? new Date(form.date_of_birth + "T00:00:00") : undefined}
-                          onSelect={(date) => {
-                            if (date) {
-                              setForm((f) => ({ ...f, date_of_birth: format(date, "yyyy-MM-dd") }))
-                              setErrors((prev) => ({ ...prev, date_of_birth: undefined }))
-                              markTouched("date_of_birth")
-                            }
-                          }}
-                        />
-                      </PopoverContent>
-                    </Popover>
                   </div>
                 </FieldWrap>
                 <FieldWrap label="Gender *" error={showError("gender") ? errors.gender : undefined}>

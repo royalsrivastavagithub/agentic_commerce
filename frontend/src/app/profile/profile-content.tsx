@@ -5,13 +5,10 @@ import type { User, Address } from "@/types/api"
 import { useAuthStore } from "@/stores/auth-store"
 import { useRouter } from "next/navigation"
 import { useState, useEffect, useRef } from "react"
-import { User as UserIcon, Pencil, Check, X, Plus, Trash2, CalendarIcon } from "lucide-react"
+import { User as UserIcon, Pencil, Check, X, Plus, Trash2 } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { format } from "date-fns"
 import { toast } from "sonner"
 import { INDIA_STATES, INDIA_LOCATIONS } from "@/lib/india-locations"
 
@@ -176,17 +173,7 @@ function ProfileInner() {
                     </span>
                   )
                 })}
-                <Popover>
-                  <PopoverTrigger className="flex h-7 w-7 items-center justify-center text-muted-foreground hover:text-foreground rounded-md hover:bg-accent">
-                    <CalendarIcon className="h-3.5 w-3.5" />
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar mode="single"
-                      selected={val && /^\d{4}-\d{2}-\d{2}$/.test(val) ? new Date(val + "T00:00:00") : undefined}
-                      onSelect={(date) => { if (date) onChange(format(date, "yyyy-MM-dd")) }}
-                    />
-                  </PopoverContent>
-                </Popover>
+
               </div>
             )}
           />
