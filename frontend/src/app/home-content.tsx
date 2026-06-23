@@ -7,13 +7,27 @@ import Link from "next/link"
 import { Star, Sparkles, Truck, RotateCcw, Shield } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 
+function SkeletonGrid({ count = 4 }: { count?: number }) {
+  return (
+    <div className="flex flex-wrap gap-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="w-40 animate-pulse rounded-lg border bg-white p-2 dark:border-border dark:bg-card">
+          <div className="mb-2 h-28 rounded-md bg-gray-200 dark:bg-muted" />
+          <div className="mb-1 h-3 w-3/4 rounded bg-gray-200 dark:bg-muted" />
+          <div className="h-4 w-1/2 rounded bg-gray-200 dark:bg-muted" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function HomeContent() {
-  const { data: featured } = useQuery({
+  const { data: featured, isLoading: featuredLoading, isError: featuredError } = useQuery({
     queryKey: ["home-featured"],
     queryFn: () => api.get<ProductListResponse>("/products/featured?limit=10"),
   })
 
-  const { data: deals } = useQuery({
+  const { data: deals, isLoading: dealsLoading, isError: dealsError } = useQuery({
     queryKey: ["home-deals"],
     queryFn: () => api.get<ProductListResponse>("/products?min_discount=10&limit=8"),
   })
@@ -60,7 +74,19 @@ export default function HomeContent() {
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Today's Deals */}
-        {dealProducts.length > 0 && (
+        {dealsError ? (
+          <section className="mb-10">
+            <h2 className="mb-4 text-xl font-bold text-foreground">Today&apos;s Deals</h2>
+            <p className="text-sm text-muted-foreground">Could not load deals. Please try again later.</p>
+          </section>
+        ) : dealsLoading ? (
+          <section className="mb-10">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-foreground">Today&apos;s Deals</h2>
+            </div>
+            <SkeletonGrid count={4} />
+          </section>
+        ) : dealProducts.length > 0 && (
           <section className="mb-10">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-foreground">Today&apos;s Deals</h2>
@@ -75,17 +101,31 @@ export default function HomeContent() {
         )}
 
         {/* Featured Products */}
-        <section className="mb-10">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-foreground">Featured Products</h2>
-            <Link href="/products?is_featured=true" className="text-sm font-medium text-amazon-link hover:underline">View All</Link>
-          </div>
-          <div className="flex flex-wrap gap-4">
-            {products.slice(0, 7).map((product) => (
-              <MiniCard key={product.id} product={product} />
-            ))}
-          </div>
-        </section>
+        {featuredError ? (
+          <section className="mb-10">
+            <h2 className="mb-4 text-xl font-bold text-foreground">Featured Products</h2>
+            <p className="text-sm text-muted-foreground">Could not load featured products. Please try again later.</p>
+          </section>
+        ) : featuredLoading ? (
+          <section className="mb-10">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-foreground">Featured Products</h2>
+            </div>
+            <SkeletonGrid count={4} />
+          </section>
+        ) : (
+          <section className="mb-10">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-foreground">Featured Products</h2>
+              <Link href="/products?is_featured=true" className="text-sm font-medium text-amazon-link hover:underline">View All</Link>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              {products.slice(0, 7).map((product) => (
+                <MiniCard key={product.id} product={product} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </Shell>
   )
@@ -115,7 +155,7 @@ function FeaturedCard({ product }: { product: Product }) {
             {product.description}
           </p>
           <div className="mt-2 flex items-center gap-1">
-            <div className="flex">
+            <div className="flex" role="img" aria-label={`${Math.round(product.rating)} out of 5 stars`}>
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star
                   key={i}
@@ -159,7 +199,7 @@ function MiniCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="w-40 shrink-0 snap-start rounded-lg border bg-white p-2 transition-shadow hover:shadow-md dark:border-border dark:bg-card"
+      className="w-40 shrink-0 snap-start rounded-lg border bg-white p-2 transition-all hover:shadow-lg hover:-translate-y-0.5 dark:border-border dark:bg-card"
     >
       <div className="mb-2 h-28 overflow-hidden rounded-md bg-white">
         <img src={product.thumbnail || "/placeholder.svg"} alt={product.title} className="h-full w-full object-contain" />
@@ -174,7 +214,7 @@ function MiniCard({ product }: { product: Product }) {
       ) : (
         <p className="mt-1 text-sm font-bold">₹{product.price.toFixed(2)}</p>
       )}
-      <div className="mt-1 flex items-center gap-0.5">
+      <div className="mt-1 flex items-center gap-0.5" role="img" aria-label={`${Math.round(product.rating)} out of 5 stars`}>
         {Array.from({ length: 5 }).map((_, i) => (
           <Star key={i} className={`h-2.5 w-2.5 ${i < Math.round(product.rating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
         ))}

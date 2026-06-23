@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ShoppingCart, Search, Menu, LogOut, Package, Heart, UserIcon, Moon, Sun } from "lucide-react"
+import { ShoppingCart, Search, Menu, LogOut, Package, Heart, UserIcon, Moon, Sun, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -27,6 +27,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [searchCategory, setSearchCategory] = useState("all")
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const { theme, setTheme } = useTheme()
@@ -107,6 +108,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
           >
             Agentic Commerce
           </Link>
+
+          {/* Mobile search trigger */}
+          <button
+            type="button"
+            onClick={() => setMobileSearchOpen(true)}
+            className="flex items-center px-2 py-1.5 text-white hover:opacity-80 sm:hidden"
+            aria-label="Open search"
+          >
+            <Search className="h-5 w-5" />
+          </button>
 
           {/* Search bar with category dropdown */}
           <div className="hidden flex-1 sm:flex sm:max-w-xl lg:max-w-4xl" ref={searchRef}>
@@ -274,9 +285,77 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
 
+        {/* Mobile search overlay */}
+        {mobileSearchOpen && (
+          <div className="border-t border-white/10 bg-amazon-nav px-3 pb-3 pt-2 sm:hidden">
+            <div className="flex items-center gap-2">
+              <div className="relative flex flex-1">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    setSuggestionsOpen(true)
+                  }}
+                  autoFocus
+                  className="flex-1 rounded-md bg-white px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => { handleSearch({ preventDefault: () => {} } as React.FormEvent); setMobileSearchOpen(false) }}
+                  className="flex items-center justify-center rounded-r-md bg-cyan-600 px-3 hover:brightness-95"
+                >
+                  <Search className="h-4 w-4 text-white" />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setMobileSearchOpen(false); setSuggestionsOpen(false) }}
+                className="p-1 text-white hover:opacity-80"
+                aria-label="Close search"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {suggestionsOpen && debouncedQuery.length >= 2 && suggestions && (
+              <div className="mt-1 overflow-hidden rounded-lg border bg-white shadow-lg">
+                {suggestions.products.length > 0 ? (
+                  <div>
+                    {suggestions.products.slice(0, 5).map((product) => (
+                      <Link
+                        key={product.id}
+                        href={`/products/${product.id}`}
+                        onClick={() => { setSuggestionsOpen(false); setSearchQuery(""); setMobileSearchOpen(false) }}
+                        className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50"
+                      >
+                        <img src={product.thumbnail || "/placeholder.svg"} alt={product.title} className="h-8 w-8 flex-shrink-0 rounded object-contain" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-gray-900">{product.title}</p>
+                          <p className="text-xs text-muted-foreground">₹{product.price.toFixed(2)}</p>
+                        </div>
+                      </Link>
+                    ))}
+                    <Link
+                      href={`/products?search=${encodeURIComponent(debouncedQuery)}`}
+                      onClick={() => { setSuggestionsOpen(false); setSearchQuery(""); setMobileSearchOpen(false) }}
+                      className="flex items-center justify-center border-t px-3 py-2 text-sm font-medium text-amazon-link hover:bg-gray-50"
+                    >
+                      See all results
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                    No products found
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main id="main-content" className="flex-1">{children}</main>
 
       <footer className="border-t bg-amazon-nav2 py-8">
         <div className="mx-auto max-w-7xl px-4 text-center text-sm text-gray-400 sm:px-6 lg:px-8">

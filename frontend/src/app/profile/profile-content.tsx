@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 import { useState, useEffect, useRef } from "react"
 import { User as UserIcon, Pencil, Check, X, Plus, Trash2, CalendarIcon } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
@@ -447,7 +447,7 @@ function AddrCard({
               <DialogDescription>Are you sure you want to delete this address?</DialogDescription>
             </DialogHeader>
             <div className="flex justify-end gap-3">
-              <button type="button" className={buttonVariants({ variant: "outline" })} onClick={() => {}}>Cancel</button>
+              <DialogClose className={buttonVariants({ variant: "outline" })}>Cancel</DialogClose>
               <Button variant="destructive" onClick={() => { onDelete(addr!.id); setDeletingId(addr!.id) }} disabled={isSaving && deletingId === addr!.id}>
                 Delete
               </Button>

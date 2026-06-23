@@ -162,7 +162,7 @@ export default function ProductDetailContent() {
 
             {/* Rating */}
             <div className="mt-2 flex items-center gap-2">
-              <div className="flex">
+              <div className="flex" role="img" aria-label={`${Math.round(product.rating)} out of 5 stars`}>
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star
                     key={i}
@@ -380,6 +380,7 @@ export function ReviewSection({ productId }: { productId: number }) {
               key={i}
               type="button"
               onClick={() => setRating(i + 1)}
+              aria-label={`${i + 1} star${i > 0 ? "s" : ""}`}
               className="p-0.5 transition-colors hover:scale-110"
             >
               <Star

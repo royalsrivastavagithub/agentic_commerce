@@ -174,21 +174,36 @@ function CheckoutInner() {
           {showAddForm && (
             <div className="mb-4 space-y-3 rounded-lg border bg-muted/50 p-4">
               <div className="grid grid-cols-2 gap-3">
-                <input placeholder="Label (Home/Work)" value={newAddr.label} onChange={(e) => setNewAddr({ ...newAddr, label: e.target.value })} className="col-span-2 rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
-                <input placeholder="Street address" value={newAddr.street} onChange={(e) => setNewAddr({ ...newAddr, street: e.target.value })} className="col-span-2 rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
-                <select value={newAddr.city} onChange={(e) => setNewAddr({ ...newAddr, city: e.target.value })} disabled={!newAddr.state} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card disabled:opacity-50 disabled:cursor-not-allowed">
-                  <option value="">{newAddr.state ? "Select city" : "Select state first"}</option>
-                  {newAddr.state && INDIA_LOCATIONS[newAddr.state]?.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-                <select value={newAddr.state} onChange={(e) => { setNewAddr({ ...newAddr, state: e.target.value, city: '' }) }} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card">
-                  <option value="">State</option>
-                  {INDIA_STATES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-                <input placeholder="Pincode" inputMode="numeric" maxLength={6} value={newAddr.pincode} onChange={(e) => setNewAddr({ ...newAddr, pincode: e.target.value.replace(/\D/g, '') })} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+                <div className="col-span-2">
+                  <label htmlFor="checkout-label" className="mb-1 block text-xs font-medium text-muted-foreground">Label (Home/Work)</label>
+                  <input id="checkout-label" placeholder="e.g. Home" value={newAddr.label} onChange={(e) => setNewAddr({ ...newAddr, label: e.target.value })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+                </div>
+                <div className="col-span-2">
+                  <label htmlFor="checkout-street" className="mb-1 block text-xs font-medium text-muted-foreground">Street Address</label>
+                  <input id="checkout-street" placeholder="Enter your street address" value={newAddr.street} onChange={(e) => setNewAddr({ ...newAddr, street: e.target.value })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+                </div>
+                <div>
+                  <label htmlFor="checkout-state" className="mb-1 block text-xs font-medium text-muted-foreground">State</label>
+                  <select id="checkout-state" value={newAddr.state} onChange={(e) => { setNewAddr({ ...newAddr, state: e.target.value, city: '' }) }} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card">
+                    <option value="">Select state</option>
+                    {INDIA_STATES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="checkout-city" className="mb-1 block text-xs font-medium text-muted-foreground">City</label>
+                  <select id="checkout-city" value={newAddr.city} onChange={(e) => setNewAddr({ ...newAddr, city: e.target.value })} disabled={!newAddr.state} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card disabled:opacity-50 disabled:cursor-not-allowed">
+                    <option value="">{newAddr.state ? "Select city" : "Select state first"}</option>
+                    {newAddr.state && INDIA_LOCATIONS[newAddr.state]?.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label htmlFor="checkout-pincode" className="mb-1 block text-xs font-medium text-muted-foreground">Pincode</label>
+                  <input id="checkout-pincode" placeholder="6-digit pincode" inputMode="numeric" maxLength={6} value={newAddr.pincode} onChange={(e) => setNewAddr({ ...newAddr, pincode: e.target.value.replace(/\D/g, '') })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+                </div>
               </div>
               <button
                 type="button"

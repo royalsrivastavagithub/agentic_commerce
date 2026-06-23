@@ -73,7 +73,7 @@ export default function ReviewsContent() {
                 <TableCell className="font-medium">#{r.product_id}</TableCell>
                 <TableCell className="text-muted-foreground">{r.user?.email || `#${r.user_id}`}</TableCell>
                 <TableCell>
-                  <div className="flex">
+                  <div className="flex" role="img" aria-label={`${r.rating} out of 5 stars`}>
                     {Array.from({ length: 5 }).map((_, i) => (
                       <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
                     ))}

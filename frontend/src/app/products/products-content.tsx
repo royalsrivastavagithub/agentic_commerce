@@ -9,6 +9,8 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Star } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 import { Slider } from "@/components/ui/slider"
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Filter } from "lucide-react"
 import { buildSortParams, buildFilterParams } from "@/lib/filter-utils"
 import {
   Pagination,
@@ -134,7 +136,7 @@ export default function ProductsContent() {
     ? ["products", "search", searchFromUrl, catId, page, minPrice, maxPrice, minRating, minDiscount, sort, isFeatured]
     : ["products", "list", skip, LIMIT, category, sort, minPrice, maxPrice, minRating, minDiscount, isFeatured, priceMin, priceMax]
 
-  const { data: productsData, isLoading } = useQuery({
+  const { data: productsData, isLoading, isError } = useQuery({
     queryKey: productsQueryKey,
     enabled: urlReady && (category === "all" || catId !== undefined),
     queryFn: () => {
@@ -162,116 +164,145 @@ export default function ProductsContent() {
   const totalPages = Math.ceil(total / LIMIT)
   const displayProducts = products.slice(0, LIMIT)
 
+  function FiltersContent() {
+    return (
+      <div className="space-y-5">
+        {/* Sort */}
+        <div>
+          <h3 className="mb-1.5 text-sm font-bold text-foreground">Sort by</h3>
+          <select
+            value={sort}
+            onChange={(e) => { setSort(e.target.value); setPage(1) }}
+            className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card dark:text-foreground"
+          >
+            <option value="default">Default</option>
+            <option value="price-asc">Price: Low to High</option>
+            <option value="price-desc">Price: High to Low</option>
+            <option value="rating">Top Rated</option>
+          </select>
+        </div>
+
+        {/* Price range slider */}
+        <div>
+          <h3 className="mb-1.5 text-sm font-bold text-foreground">Price Range</h3>
+          <div className="space-y-2 pt-1">
+            {priceMin < priceMax ? (
+              <>
+                <Slider
+                  key={`${priceMin}-${priceMax}`}
+                  value={[
+                    Math.max(parseFloat(minPrice || String(priceMin)), priceMin),
+                    Math.min(parseFloat(maxPrice || String(priceMax)), priceMax),
+                  ]}
+                  onValueChange={([min, max]) => {
+                    setMinPrice(min.toString())
+                    setMaxPrice(max.toString())
+                  }}
+                  min={priceMin} max={priceMax} step={10}
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>₹{minPrice || parseFloat(String(priceMin)).toFixed(2)}</span>
+                  <span>₹{maxPrice || parseFloat(String(priceMax)).toFixed(2)}</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">No price range available</p>
+            )}
+          </div>
+        </div>
+
+        {/* Rating filter */}
+        <div>
+          <h3 className="mb-1.5 text-sm font-bold text-foreground">Min. Rating</h3>
+          <div className="space-y-1">
+            {[4, 3, 2, 1].map((r) => (
+              <button
+                key={r}
+                onClick={() => setMinRating(minRating === r ? 0 : r)}
+                aria-pressed={minRating === r}
+                className={`flex w-full items-center gap-1 rounded px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-accent ${
+                  minRating === r ? "bg-gray-100 dark:bg-accent font-medium" : "text-gray-600 dark:text-muted-foreground"
+                }`}
+              >
+                <div className="flex" role="img" aria-label={`${r} stars and up`}>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`h-3.5 w-3.5 ${
+                        i < r ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs">& up</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Discount filter */}
+        <div>
+          <h3 className="mb-1.5 text-sm font-bold text-foreground">Discount</h3>
+          <div className="space-y-1">
+            {[10, 20, 30, 50].map((d) => (
+              <button
+                key={d}
+                onClick={() => setMinDiscount(minDiscount === d ? 0 : d)}
+                className={`flex w-full items-center gap-1 rounded px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-accent ${
+                  minDiscount === d ? "bg-gray-100 dark:bg-accent font-medium" : "text-gray-600 dark:text-muted-foreground"
+                }`}
+              >
+                <span className="text-xs">{d}% off or more</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {hasFilters && (
+          <button onClick={resetFilters} className="text-sm font-medium text-amazon-link hover:underline">
+            Clear all filters
+          </button>
+        )}
+      </div>
+    )
+  }
+
   return (
     <Shell>
       <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
 
-
         <div className="flex gap-6">
-          {/* Sidebar */}
+          {/* Desktop sidebar */}
           <aside className="hidden w-56 shrink-0 md:block">
-            <div className="space-y-5">
-              {/* Sort */}
-              <div>
-                <h3 className="mb-1.5 text-sm font-bold text-foreground">Sort by</h3>
-                <select
-                  value={sort}
-                  onChange={(e) => { setSort(e.target.value); setPage(1) }}
-                  className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card dark:text-foreground"
-                >
-                  <option value="default">Default</option>
-                  <option value="price-asc">Price: Low to High</option>
-                  <option value="price-desc">Price: High to Low</option>
-                  <option value="rating">Top Rated</option>
-                </select>
-              </div>
-
-              {/* Price range slider */}
-              <div>
-                <h3 className="mb-1.5 text-sm font-bold text-foreground">Price Range</h3>
-                <div className="space-y-2 pt-1">
-                  {priceMin < priceMax ? (
-                    <>
-                      <Slider
-                        key={`${priceMin}-${priceMax}`}
-                        value={[
-                          Math.max(parseFloat(minPrice || String(priceMin)), priceMin),
-                          Math.min(parseFloat(maxPrice || String(priceMax)), priceMax),
-                        ]}
-                        onValueChange={([min, max]) => {
-                          setMinPrice(min.toString())
-                          setMaxPrice(max.toString())
-                        }}
-                        min={priceMin} max={priceMax} step={10}
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>₹{minPrice || parseFloat(String(priceMin)).toFixed(2)}</span>
-                        <span>₹{maxPrice || parseFloat(String(priceMax)).toFixed(2)}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">No price range available</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Rating filter */}
-              <div>
-                <h3 className="mb-1.5 text-sm font-bold text-foreground">Min. Rating</h3>
-                <div className="space-y-1">
-                  {[4, 3, 2, 1].map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => setMinRating(minRating === r ? 0 : r)}
-                      className={`flex w-full items-center gap-1 rounded px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-accent ${
-                        minRating === r ? "bg-gray-100 dark:bg-accent font-medium" : "text-gray-600 dark:text-muted-foreground"
-                      }`}
-                    >
-                      <div className="flex">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-3.5 w-3.5 ${
-                              i < r ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-xs">& up</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Discount filter */}
-              <div>
-                <h3 className="mb-1.5 text-sm font-bold text-foreground">Discount</h3>
-                <div className="space-y-1">
-                  {[10, 20, 30, 50].map((d) => (
-                    <button
-                      key={d}
-                      onClick={() => setMinDiscount(minDiscount === d ? 0 : d)}
-                      className={`flex w-full items-center gap-1 rounded px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-accent ${
-                        minDiscount === d ? "bg-gray-100 dark:bg-accent font-medium" : "text-gray-600 dark:text-muted-foreground"
-                      }`}
-                    >
-                      <span className="text-xs">{d}% off or more</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {hasFilters && (
-                <button onClick={resetFilters} className="text-sm font-medium text-amazon-link hover:underline">
-                  Clear all filters
-                </button>
-              )}
-            </div>
+            <FiltersContent />
           </aside>
+
+          {/* Mobile filter button */}
+          <div className="fixed bottom-4 left-1/2 z-30 -translate-x-1/2 md:hidden">
+            <Sheet>
+              <SheetTrigger className="flex items-center gap-2 rounded-full bg-amazon-nav px-5 py-2.5 text-sm font-medium text-white shadow-lg hover:brightness-95">
+                <Filter className="h-4 w-4" />
+                Filters
+              </SheetTrigger>
+              <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto rounded-t-xl">
+                <SheetHeader>
+                  <SheetTitle>Filters</SheetTitle>
+                </SheetHeader>
+                <div className="mt-4">
+                  <FiltersContent />
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
 
           {/* Main */}
           <div className="flex-1">
-            {isLoading ? (
+            {isError ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <p className="text-lg text-gray-600">Something went wrong</p>
+                <p className="mt-1 text-sm text-muted-foreground">Could not load products. Please try again later.</p>
+              </div>
+            ) : isLoading ? (
               <div className="flex flex-col gap-3">
                 {Array.from({ length: 5 }).map((_, i) => (
                     <div key={i} className="flex animate-pulse gap-4 rounded-lg border bg-white p-3 dark:border-border dark:bg-card">
@@ -347,7 +378,7 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="flex gap-4 rounded-lg border bg-white p-3 transition-shadow hover:shadow-md dark:border-border dark:bg-card"
+      className="flex gap-4 rounded-lg border bg-white p-3 transition-all hover:shadow-lg hover:-translate-y-0.5 dark:border-border dark:bg-card"
     >
       <div className="h-28 w-28 shrink-0 overflow-hidden rounded-md bg-white sm:h-32 sm:w-32">
         <img
@@ -368,7 +399,7 @@ function ProductCard({ product }: { product: Product }) {
           </p>
 
           <div className="mt-2 flex items-center gap-1">
-            <div className="flex">
+            <div className="flex" role="img" aria-label={`${Math.round(product.rating)} out of 5 stars`}>
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star
                   key={i}

@@ -91,7 +91,7 @@ describe("ReviewSection", () => {
 
     render(<ReviewSection productId={1} />)
     fireEvent.click(screen.getByText("Write a Review"))
-    fireEvent.click(screen.getAllByRole("button", { name: "" })[0]) // click first star
+    fireEvent.click(screen.getByRole("button", { name: "1 star" })) // click first star
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Great product!" } })
     fireEvent.click(screen.getByText("Submit Review"))
 
