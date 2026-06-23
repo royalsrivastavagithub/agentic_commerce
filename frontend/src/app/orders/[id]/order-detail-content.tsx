@@ -31,14 +31,6 @@ function OrderDetailInner() {
     queryFn: () => api.get<Order>(`/orders/${id}`),
   })
 
-  const statusColors: Record<string, string> = {
-    pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-    confirmed: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-    shipped: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-    delivered: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  }
-
   if (isLoading) {
     return (
       <Shell>
@@ -79,9 +71,7 @@ function OrderDetailInner() {
               Placed on {new Date(order.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </p>
           </div>
-          <span className={`rounded-full px-3 py-1 text-sm font-medium capitalize ${statusColors[order.status] || "bg-gray-100 text-gray-800"}`}>
-            {order.status}
-          </span>
+
         </div>
 
         <div className="mb-6 rounded-lg border bg-white p-4 dark:border-border dark:bg-card">
