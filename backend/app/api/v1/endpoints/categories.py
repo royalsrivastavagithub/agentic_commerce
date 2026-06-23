@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.category import Category
-from app.models.product import Product
 from app.schemas.category import CategorySchema
 from app.schemas.product import ProductsResponse
+from app.services import product_service
 
 router = APIRouter(tags=["categories"])
 
@@ -58,30 +58,9 @@ def get_products_by_category(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Category with id {category_id} not found",
         )
-    query = db.query(Product).filter(Product.category_id == category_id)
-
-    if min_price is not None:
-        query = query.filter(Product.price >= min_price)
-    if max_price is not None:
-        query = query.filter(Product.price <= max_price)
-    if min_rating is not None:
-        query = query.filter(Product.rating >= min_rating)
-    if min_discount is not None:
-        query = query.filter(Product.discount_percentage >= min_discount)
-
-    total = query.count()
-
-    if sort_by == "price":
-        col = Product.price
-    elif sort_by == "rating":
-        col = Product.rating
-    else:
-        col = Product.id
-
-    if sort_order == "desc":
-        col = col.desc()
-    else:
-        col = col.asc()
-
-    products = query.order_by(col).offset(skip).limit(limit).all()
+    products, total = product_service.list_products(
+        db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order,
+        category_id=category_id, min_price=min_price, max_price=max_price,
+        min_rating=min_rating, min_discount=min_discount,
+    )
     return ProductsResponse(products=products, total=total, skip=skip, limit=limit)

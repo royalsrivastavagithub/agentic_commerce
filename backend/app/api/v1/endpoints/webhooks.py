@@ -1,19 +1,15 @@
-import hashlib
-import hmac
 import json
 
 from fastapi import APIRouter, HTTPException, Request, status
-from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
-from app.models.order import Order, OrderItem, OrderStatus
-from app.models.product import Product
+from app.models.order import Order, OrderStatus
 from app.models.cart import Cart
 from app.models.pending_payment import PendingPayment
 from app.models.address import Address
 from app.models.user import User
 from app.services.razorpay import verify_webhook_signature
-from app.core.config import settings
+from app.services import order_service
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"], include_in_schema=False)
 
@@ -64,49 +60,12 @@ async def razorpay_webhook(request: Request):
             if not cart or not cart.items:
                 return {"status": "ignored", "reason": "cart_empty"}
 
-            shipping_name = (
-                f"{user.first_name or ''} {user.last_name or ''}".strip() or user.email
+            order, _ = order_service.build_order_and_items(
+                db, user, cart, address,
+                razorpay_order_id, razorpay_payment_id,
+                price_attr="price", strict_stock=False,
             )
 
-            order = Order(
-                user_id=pending.user_id,
-                status=OrderStatus.PAID,
-                shipping_name=shipping_name,
-                shipping_phone=user.phone or "",
-                shipping_address_line_1=address.street if address else "",
-                shipping_address_line_2=None,
-                shipping_city=address.city if address else "",
-                shipping_state=address.state if address else "",
-                shipping_country=address.country if address else "",
-                shipping_pincode=address.pincode if address else "",
-                subtotal=0.0,
-                razorpay_order_id=razorpay_order_id,
-                razorpay_payment_id=razorpay_payment_id,
-                payment_status="paid",
-            )
-            db.add(order)
-            db.flush()
-
-            subtotal = 0.0
-            for cart_item in cart.items:
-                product = db.query(Product).filter(Product.id == cart_item.product_id).first()
-                if product and cart_item.quantity <= product.stock:
-                    item_subtotal = round(cart_item.quantity * product.price, 2)
-                    order_item = OrderItem(
-                        order_id=order.id,
-                        product_id=product.id,
-                        product_name=product.title,
-                        product_price=product.price,
-                        quantity=cart_item.quantity,
-                        subtotal=item_subtotal,
-                        thumbnail=product.thumbnail,
-                    )
-                    db.add(order_item)
-                    product.stock -= cart_item.quantity
-                    subtotal += item_subtotal
-
-            order.subtotal = round(subtotal, 2)
-            order.total = order.subtotal
             cart.items = []
             db.delete(pending)
             db.commit()

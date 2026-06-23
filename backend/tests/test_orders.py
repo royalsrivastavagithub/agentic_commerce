@@ -139,7 +139,7 @@ def _add_to_cart(db: Session, user_id: int, product_id: int, quantity: int = 2):
 
 
 class TestCreatePayment:
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_create_payment_success(self, mock_create_order, client: TestClient, db: Session):
         mock_create_order.return_value = {"id": "rzp_test_order_123"}
         user = _create_user(db, name="John")
@@ -162,7 +162,7 @@ class TestCreatePayment:
         assert data["currency"] == "INR"
         assert "order_id" not in data
 
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_create_payment_empty_cart_returns_400(self, mock_create_order, client: TestClient, db: Session):
         mock_create_order.return_value = {"id": "rzp_test_order_123"}
         user = _create_user(db)
@@ -177,7 +177,7 @@ class TestCreatePayment:
         assert resp.status_code == 400
         assert "empty" in resp.json()["detail"].lower()
 
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_create_payment_invalid_address_returns_404(self, mock_create_order, client: TestClient, db: Session):
         mock_create_order.return_value = {"id": "rzp_test_order_123"}
         user = _create_user(db)
@@ -193,7 +193,7 @@ class TestCreatePayment:
         )
         assert resp.status_code == 404
 
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_create_payment_address_belonging_to_another_user_returns_404(
         self, mock_create_order, client: TestClient, db: Session
     ):
@@ -214,7 +214,7 @@ class TestCreatePayment:
         )
         assert resp.status_code == 404
 
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_create_payment_insufficient_stock_returns_400(
         self, mock_create_order, client: TestClient, db: Session
     ):
@@ -234,7 +234,7 @@ class TestCreatePayment:
         assert resp.status_code == 400
         assert "stock" in resp.json()["detail"].lower()
 
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_create_payment_does_not_deduct_stock(
         self, mock_create_order, client: TestClient, db: Session
     ):
@@ -255,7 +255,7 @@ class TestCreatePayment:
         db.refresh(product)
         assert product.stock == 10  # Stock NOT deducted
 
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_create_payment_does_not_clear_cart(
         self, mock_create_order, client: TestClient, db: Session
     ):
@@ -276,7 +276,7 @@ class TestCreatePayment:
         cart_resp = client.get("/api/v1/cart", headers=headers)
         assert len(cart_resp.json()["items"]) > 0  # Cart NOT cleared
 
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_order_item_has_product_snapshot(self, mock_create_order, client: TestClient, db: Session):
         mock_create_order.return_value = {"id": "rzp_test_order_123"}
         user = _create_user(db)
@@ -292,7 +292,7 @@ class TestCreatePayment:
             headers=headers,
         )
 
-        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+        with patch("app.services.order_service.verify_payment_signature", return_value=True):
             verify_resp = client.post(
                 "/api/v1/orders/verify-payment",
                 json={
@@ -314,7 +314,7 @@ class TestCreatePayment:
         assert item["quantity"] == 2
         assert item["subtotal"] == 31.98
 
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_order_subtotal_matches_cart_total(self, mock_create_order, client: TestClient, db: Session):
         mock_create_order.return_value = {"id": "rzp_test_order_123"}
         user = _create_user(db)
@@ -338,7 +338,7 @@ class TestCreatePayment:
         assert resp.json()["amount"] == cart_total
         assert resp.json()["amount"] == round(3 * 10.0 + 2 * 20.0, 2)
 
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_create_payment_razorpay_failure_returns_502(
         self, mock_create_order, client: TestClient, db: Session
     ):
@@ -358,7 +358,7 @@ class TestCreatePayment:
         assert resp.status_code == 502
         assert "razorpay" in resp.json()["detail"].lower()
 
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_create_payment_shipping_name_falls_back_to_email(
         self, mock_create_order, client: TestClient, db: Session
     ):
@@ -380,7 +380,7 @@ class TestCreatePayment:
             headers=headers,
         )
 
-        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+        with patch("app.services.order_service.verify_payment_signature", return_value=True):
             verify_resp = client.post(
                 "/api/v1/orders/verify-payment",
                 json={
@@ -395,8 +395,8 @@ class TestCreatePayment:
 
 
 class TestVerifyPayment:
-    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.verify_payment_signature")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_verify_payment_success(
         self, mock_create_order, mock_verify, client: TestClient, db: Session
     ):
@@ -431,8 +431,8 @@ class TestVerifyPayment:
         assert data["status"] == "PAID"
         assert data["razorpay_payment_id"] == "rzp_pay_test_456"
 
-    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.verify_payment_signature")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_verify_payment_deducts_stock(
         self, mock_create_order, mock_verify, client: TestClient, db: Session
     ):
@@ -464,8 +464,8 @@ class TestVerifyPayment:
         db.refresh(product)
         assert product.stock == 7  # Stock deducted after verify
 
-    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.verify_payment_signature")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_verify_payment_clears_cart(
         self, mock_create_order, mock_verify, client: TestClient, db: Session
     ):
@@ -497,8 +497,8 @@ class TestVerifyPayment:
         cart_resp = client.get("/api/v1/cart", headers=headers)
         assert cart_resp.json()["items"] == []
 
-    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.verify_payment_signature")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_verify_payment_invalid_signature(
         self, mock_create_order, mock_verify, client: TestClient, db: Session
     ):
@@ -530,8 +530,8 @@ class TestVerifyPayment:
         assert resp.status_code == 400
         assert "signature" in resp.json()["detail"].lower()
 
-    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.verify_payment_signature")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_verify_payment_wrong_order(
         self, mock_create_order, mock_verify, client: TestClient, db: Session
     ):
@@ -562,8 +562,8 @@ class TestVerifyPayment:
         )
         assert resp.status_code == 404
 
-    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.verify_payment_signature")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_verify_payment_insufficient_stock(
         self, mock_create_order, mock_verify, client: TestClient, db: Session
     ):
@@ -598,8 +598,8 @@ class TestVerifyPayment:
         assert resp.status_code == 400
         assert "stock" in resp.json()["detail"].lower()
 
-    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.verify_payment_signature")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_verify_payment_order_already_paid_returns_400(
         self, mock_create_order, mock_verify, client: TestClient, db: Session
     ):
@@ -643,8 +643,8 @@ class TestVerifyPayment:
         )
         assert resp2.status_code == 404
 
-    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.verify_payment_signature")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_verify_payment_product_deleted_returns_400(
         self, mock_create_order, mock_verify, client: TestClient, db: Session
     ):
@@ -681,8 +681,8 @@ class TestVerifyPayment:
         assert resp.status_code == 400
         assert "no longer exists" in resp.json()["detail"]
 
-    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.verify_payment_signature")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_verify_payment_cart_is_none(
         self, mock_create_order, mock_verify, client: TestClient, db: Session
     ):
@@ -721,7 +721,7 @@ class TestVerifyPayment:
 
 
 class TestListOrders:
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_list_returns_own_orders_only(self, mock_create_order, client: TestClient, db: Session):
         mock_create_order.return_value = {"id": "rzp_test_order_123"}
         user1 = _create_user(db, "list1@test.com", "User One")
@@ -732,14 +732,14 @@ class TestListOrders:
         addr1 = _create_address(db, user1.id)
         _add_to_cart(db, user1.id, p1.id)
         client.post("/api/v1/orders/create-payment", json={"address_id": addr1.id}, headers=_user_token(user1))
-        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+        with patch("app.services.order_service.verify_payment_signature", return_value=True):
             client.post("/api/v1/orders/verify-payment", json={"razorpay_order_id": "rzp_test_order_123", "razorpay_payment_id": "rzp_pay", "razorpay_signature": "sig"}, headers=_user_token(user1))
 
         p2 = _create_product(db, cat_id, {"sku": "LST-2", "title": "P2"})
         addr2 = _create_address(db, user2.id)
         _add_to_cart(db, user2.id, p2.id)
         client.post("/api/v1/orders/create-payment", json={"address_id": addr2.id}, headers=_user_token(user2))
-        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+        with patch("app.services.order_service.verify_payment_signature", return_value=True):
             client.post("/api/v1/orders/verify-payment", json={"razorpay_order_id": "rzp_test_order_123", "razorpay_payment_id": "rzp_pay", "razorpay_signature": "sig"}, headers=_user_token(user2))
 
         resp1 = client.get("/api/v1/orders", headers=_user_token(user1))
@@ -750,7 +750,7 @@ class TestListOrders:
         assert len(resp2.json()) == 1
         assert resp2.json()[0]["shipping_name"] == "User Two"
 
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_list_orders_newest_first(self, mock_create_order, client: TestClient, db: Session):
         mock_create_order.return_value = {"id": "rzp_test_order_123"}
         user = _create_user(db)
@@ -762,13 +762,13 @@ class TestListOrders:
 
         _add_to_cart(db, user.id, p1.id)
         client.post("/api/v1/orders/create-payment", json={"address_id": addr.id}, headers=headers)
-        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+        with patch("app.services.order_service.verify_payment_signature", return_value=True):
             resp1 = client.post("/api/v1/orders/verify-payment", json={"razorpay_order_id": "rzp_test_order_123", "razorpay_payment_id": "rzp_pay", "razorpay_signature": "sig"}, headers=headers)
         order1_id = resp1.json()["id"]
 
         _add_to_cart(db, user.id, p2.id)
         client.post("/api/v1/orders/create-payment", json={"address_id": addr.id}, headers=headers)
-        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+        with patch("app.services.order_service.verify_payment_signature", return_value=True):
             resp2 = client.post("/api/v1/orders/verify-payment", json={"razorpay_order_id": "rzp_test_order_123", "razorpay_payment_id": "rzp_pay", "razorpay_signature": "sig"}, headers=headers)
         order2_id = resp2.json()["id"]
 
@@ -778,8 +778,8 @@ class TestListOrders:
 
 
 class TestGetOrder:
-    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.verify_payment_signature")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_get_own_order(self, mock_create_order, mock_verify, client: TestClient, db: Session):
         mock_create_order.return_value = {"id": "rzp_test_order_123"}
         mock_verify.return_value = True
@@ -802,8 +802,8 @@ class TestGetOrder:
         assert resp.status_code == 200
         assert resp.json()["id"] == order_id
 
-    @patch("app.api.v1.endpoints.orders.verify_payment_signature")
-    @patch("app.api.v1.endpoints.orders.create_razorpay_order")
+    @patch("app.services.order_service.verify_payment_signature")
+    @patch("app.services.order_service.create_razorpay_order")
     def test_get_other_users_order_returns_404(self, mock_create_order, mock_verify, client: TestClient, db: Session):
         mock_create_order.return_value = {"id": "rzp_test_order_123"}
         mock_verify.return_value = True

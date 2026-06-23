@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models.product import Product
 from app.schemas.product import ProductSchema, ProductsResponse
+from app.services import product_service
 
 router = APIRouter(tags=["products"])
 
@@ -19,20 +18,8 @@ def get_price_range(
     min_discount: float | None = Query(None, ge=0, le=100),
     db: Session = Depends(get_db),
 ):
-    from sqlalchemy import func
-    query = db.query(func.min(Product.price), func.max(Product.price))
-    if q:
-        safe_q = q.replace("%", "\\%").replace("_", "\\_")
-        query = query.filter(or_(
-            Product.title.ilike(f"%{safe_q}%", escape="\\"),
-            Product.brand.ilike(f"%{safe_q}%", escape="\\"),
-        ))
-    if category_id is not None:
-        query = query.filter(Product.category_id == category_id)
-    if min_discount is not None:
-        query = query.filter(Product.discount_percentage >= min_discount)
-    result = query.first()
-    return {"min_price": result[0] or 0, "max_price": result[1] or 0}
+    min_price, max_price = product_service.get_price_range(db, q=q, category_id=category_id, min_discount=min_discount)
+    return {"min_price": min_price, "max_price": max_price}
 
 
 @router.get(
@@ -53,34 +40,11 @@ def get_products(
     is_featured: bool | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Product)
-
-    if min_price is not None:
-        query = query.filter(Product.price >= min_price)
-    if max_price is not None:
-        query = query.filter(Product.price <= max_price)
-    if min_rating is not None:
-        query = query.filter(Product.rating >= min_rating)
-    if min_discount is not None:
-        query = query.filter(Product.discount_percentage >= min_discount)
-    if is_featured is not None:
-        query = query.filter(Product.is_featured.is_(is_featured))
-
-    total = query.count()
-
-    if sort_by == "price":
-        col = Product.price
-    elif sort_by == "rating":
-        col = Product.rating
-    else:
-        col = Product.id
-
-    if sort_order == "desc":
-        col = col.desc()
-    else:
-        col = col.asc()
-
-    products = query.order_by(col).offset(skip).limit(limit).all()
+    products, total = product_service.list_products(
+        db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order,
+        min_price=min_price, max_price=max_price, min_rating=min_rating,
+        min_discount=min_discount, is_featured=is_featured,
+    )
     return ProductsResponse(products=products, total=total, skip=skip, limit=limit)
 
 
@@ -103,38 +67,12 @@ def search_products(
     min_discount: float | None = Query(None, ge=0, le=100),
     db: Session = Depends(get_db),
 ):
-    safe_q = q.replace("%", "\\%").replace("_", "\\_")
-    like_pattern = f"%{safe_q}%"
-    query = db.query(Product).filter(or_(
-        Product.title.ilike(like_pattern, escape="\\"),
-        Product.brand.ilike(like_pattern, escape="\\"),
-    ))
-    if category_id is not None:
-        query = query.filter(Product.category_id == category_id)
-    if min_price is not None:
-        query = query.filter(Product.price >= min_price)
-    if max_price is not None:
-        query = query.filter(Product.price <= max_price)
-    if min_rating is not None:
-        query = query.filter(Product.rating >= min_rating)
-    if min_discount is not None:
-        query = query.filter(Product.discount_percentage >= min_discount)
-
-    total = query.count()
-
-    if sort_by == "price":
-        col = Product.price
-    elif sort_by == "rating":
-        col = Product.rating
-    else:
-        col = Product.id
-
-    if sort_order == "desc":
-        col = col.desc()
-    else:
-        col = col.asc()
-
-    products = query.order_by(col).offset(skip).limit(limit).all()
+    products, total = product_service.search_products(
+        db, q=q, category_id=category_id, skip=skip, limit=limit,
+        sort_by=sort_by, sort_order=sort_order,
+        min_price=min_price, max_price=max_price, min_rating=min_rating,
+        min_discount=min_discount,
+    )
     return ProductsResponse(products=products, total=total, skip=skip, limit=limit)
 
 
@@ -149,8 +87,7 @@ def get_featured_products(
     limit: int = Query(8, ge=1),
     db: Session = Depends(get_db),
 ):
-    total = db.query(Product).filter(Product.is_featured.is_(True)).count()
-    products = db.query(Product).filter(Product.is_featured.is_(True)).offset(skip).limit(limit).all()
+    products, total = product_service.get_featured_products(db, skip=skip, limit=limit)
     return ProductsResponse(products=products, total=total, skip=skip, limit=limit)
 
 
@@ -161,10 +98,4 @@ def get_featured_products(
     summary="Get product by ID",
 )
 def get_product(product_id: int, db: Session = Depends(get_db)):
-    product = db.query(Product).filter(Product.id == product_id).first()
-    if not product:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Product with id {product_id} not found",
-        )
-    return product
+    return product_service.get_product_by_id(db, product_id)

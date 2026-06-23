@@ -176,15 +176,13 @@ class TestWebhookRazorpay:
         address = _create_address(db, user.id)
         _add_to_cart(db, user.id, product.id)
 
-        from app.api.v1.endpoints.orders import create_razorpay_order
-        with patch("app.api.v1.endpoints.orders.create_razorpay_order") as mock_create:
+        with patch("app.services.order_service.create_razorpay_order") as mock_create:
             mock_create.return_value = {"id": "rzp_test_already_paid"}
             client.post("/api/v1/orders/create-payment",
                         json={"address_id": address.id}, headers=_user_token(db, user))
 
         # Process payment via verify-payment to create PAID order
-        from app.api.v1.endpoints.orders import verify_payment_signature
-        with patch("app.api.v1.endpoints.orders.verify_payment_signature", return_value=True):
+        with patch("app.services.order_service.verify_payment_signature", return_value=True):
             client.post("/api/v1/orders/verify-payment",
                         json={"razorpay_order_id": "rzp_test_already_paid",
                               "razorpay_payment_id": "rzp_pay", "razorpay_signature": "sig"},

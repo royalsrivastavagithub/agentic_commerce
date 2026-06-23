@@ -10,6 +10,7 @@ from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.exceptions import AppException
 from app.core.limiter import limiter
 from app.db.session import engine
 from app.models.user import User
@@ -85,6 +86,13 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(AppException)
+async def app_exception_handler(request, exc: AppException):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
 
 app.add_middleware(
     CORSMiddleware,
