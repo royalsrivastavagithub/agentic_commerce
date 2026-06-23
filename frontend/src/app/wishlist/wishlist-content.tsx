@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/auth-store"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Heart, ShoppingCart, Trash2 } from "lucide-react"
+import { buttonVariants } from "@/components/ui/button"
 import { useEffect } from "react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 import { toast } from "sonner"
@@ -118,9 +119,9 @@ function WishlistInner() {
                   type="button"
                   onClick={() => removeItem.mutate(item.id)}
                   disabled={removeItem.isPending}
-                  className="flex items-center gap-1 text-xs text-destructive hover:underline"
+                  className={buttonVariants({ variant: "destructive", size: "xs" })}
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <Trash2 className="h-3.5 w-3.5" />
                   Remove
                 </button>
               </div>

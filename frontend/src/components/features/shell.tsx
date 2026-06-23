@@ -244,16 +244,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </Link>
             )}
 
-            {/* Returns & Orders — guarded */}
-            <button
-              type="button"
-              onClick={() => router.push(isAuthenticated ? "/orders" : "/auth/login")}
-              className="hidden flex-col px-1 py-0.5 text-left text-white hover:opacity-80 sm:flex"
-            >
-              <span className="text-[10px] leading-none text-gray-300 sm:text-xs">Returns</span>
-              <span className="text-xs font-bold leading-tight sm:text-sm">& Orders</span>
-            </button>
-
             {/* Theme toggle */}
             <button
               type="button"
