@@ -147,9 +147,49 @@ export interface DashboardSummary {
   total_products: number
   total_orders: number
   total_revenue: number
-  average_order_value: number
+  avg_order_value: number
   low_stock_count: number
   orders_by_status: Record<string, number>
+}
+
+export interface TopProduct {
+  id: number
+  title: string
+  total_quantity: number
+  total_revenue: number
+}
+
+export interface RecentOrder {
+  id: number
+  user_id: number
+  user_email: string
+  status: string
+  total: number
+  created_at: string
+}
+
+export interface RecentUser {
+  id: number
+  email: string
+  first_name?: string
+  last_name?: string
+  is_active: boolean
+  created_at?: string
+}
+
+export interface AdminUserResponse {
+  id: number
+  email: string
+  is_active: boolean
+  is_verified: boolean
+  role: string
+  first_name?: string
+  last_name?: string
+  phone?: string
+  date_of_birth?: string
+  gender?: string
+  order_count: number
+  total_spent: number
 }
 
 export interface CreatePaymentResponse {
