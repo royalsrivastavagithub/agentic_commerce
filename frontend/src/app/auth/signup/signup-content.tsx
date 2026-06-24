@@ -141,9 +141,10 @@ export default function SignupContent() {
                 <Input
                   id="phone"
                   type="tel"
+                  inputMode="numeric"
                   placeholder="+91 9876543210"
                   value={form.phone}
-                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "") }))}
                 />
               </FieldWrap>
               <div className="grid grid-cols-2 gap-4">
