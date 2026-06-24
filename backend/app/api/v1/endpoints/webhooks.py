@@ -10,6 +10,7 @@ from app.models.address import Address
 from app.models.user import User
 from app.services.razorpay import verify_webhook_signature
 from app.services import order_service
+from app.services.order_service import PriceSource
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"], include_in_schema=False)
 
@@ -63,7 +64,7 @@ async def razorpay_webhook(request: Request):
             order, _ = order_service.build_order_and_items(
                 db, user, cart, address,
                 razorpay_order_id, razorpay_payment_id,
-                price_attr="price", strict_stock=False,
+                price_source=PriceSource.LIVE_PRICE, strict_stock=False,
             )
 
             cart.items = []

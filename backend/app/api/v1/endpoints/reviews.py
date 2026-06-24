@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -13,9 +13,11 @@ router = APIRouter(tags=["reviews"])
 @router.get("/products/{product_id}/reviews", response_model=list[ReviewResponse], summary="List reviews for a product")
 def list_reviews(
     product_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    return review_service.list_product_reviews(db, product_id)
+    return review_service.list_product_reviews(db, product_id, skip=skip, limit=limit)
 
 
 @router.post("/products/{product_id}/reviews", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED, summary="Create a review for a product")

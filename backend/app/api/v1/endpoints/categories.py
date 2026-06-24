@@ -15,8 +15,12 @@ router = APIRouter(tags=["categories"])
     response_model=list[CategorySchema],
     summary="List all categories",
 )
-def get_categories(db: Session = Depends(get_db)):
-    return db.query(Category).order_by(Category.name).all()
+def get_categories(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    return db.query(Category).order_by(Category.name).offset(skip).limit(limit).all()
 
 
 @router.get(

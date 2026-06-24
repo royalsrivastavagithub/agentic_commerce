@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from enum import Enum
 
 from sqlalchemy.orm import Session
 
@@ -82,6 +83,11 @@ def create_razorpay_payment(db: Session, user_id: int, address_id: int) -> Creat
     )
 
 
+class PriceSource(Enum):
+    CART_SNAPSHOT = "product_price"
+    LIVE_PRICE = "price"
+
+
 def build_order_and_items(
     db: Session,
     user: User,
@@ -90,7 +96,7 @@ def build_order_and_items(
     razorpay_order_id: str,
     razorpay_payment_id: str,
     *,
-    price_attr: str = "product_price",
+    price_source: PriceSource = PriceSource.CART_SNAPSHOT,
     strict_stock: bool = True,
 ) -> tuple[Order, float]:
     shipping_name = (
@@ -131,7 +137,7 @@ def build_order_and_items(
                 raise BadRequestError(f"Insufficient stock for '{product.title}'")
             continue
 
-        unit_price = getattr(cart_item, price_attr, product.price)
+        unit_price = cart_item.product_price if price_source == PriceSource.CART_SNAPSHOT else product.price
         item_subtotal = round(cart_item.quantity * unit_price, 2)
         order_item = OrderItem(
             order_id=order.id,
@@ -178,7 +184,7 @@ def verify_and_create_order(
     order, _ = build_order_and_items(
         db, user, cart, address,
         req.razorpay_order_id, req.razorpay_payment_id,
-        price_attr="product_price", strict_stock=True,
+        strict_stock=True,
     )
 
     return finalize_order(db, order, cart, pending)

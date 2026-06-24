@@ -24,12 +24,14 @@ def recalculate_product_rating(db: Session, product_id: int) -> None:
         db.flush()
 
 
-def list_product_reviews(db: Session, product_id: int) -> list[Review]:
+def list_product_reviews(db: Session, product_id: int, skip: int = 0, limit: int = 20) -> list[Review]:
     get_product_by_id(db, product_id)
     return (
         db.query(Review)
         .filter(Review.product_id == product_id)
         .order_by(Review.created_at.desc())
+        .offset(skip)
+        .limit(limit)
         .all()
     )
 
