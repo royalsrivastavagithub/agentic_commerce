@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.core.security import get_password_hash, create_access_token
-from app.db.session import SessionLocal
+from app.db.session import SessionLocal, engine, Base
 from app.models.user import User
 from app.models.address import Address
 from app.models.order import Order, OrderItem, OrderStatus
@@ -332,6 +332,7 @@ def main():
     force = "--force" in sys.argv
     products_only = "--products-only" in sys.argv
 
+    Base.metadata.create_all(bind=engine)
     client = TestClient(app)
     db = SessionLocal()
 

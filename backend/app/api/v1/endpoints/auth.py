@@ -10,12 +10,12 @@ from app.core.limiter import limiter
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse, UserUpdate, PasswordChange, Token, TokenWithUser, UserLogin
+from app.schemas.user import UserCreate, UserResponse, UserUpdate, PasswordChange, PasswordSet, Token, TokenWithUser, UserLogin, ForgotPasswordRequest, ResetPasswordRequest
 from app.api.deps import get_current_user
 from app.services import user_service
 from app.services.google_auth import verify_google_token
 from app.core.security import get_password_hash, create_access_token
-from app.core.email import send_verification_email
+from app.core.email import send_verification_email, send_password_reset_email
 
 class GoogleLoginRequest(BaseModel):
     id_token: str
@@ -66,6 +66,7 @@ def google_login(body: GoogleLoginRequest, db: Session = Depends(get_db)):
             hashed_password=get_password_hash(secrets.token_urlsafe(32)),
             is_verified=True,
             is_active=True,
+            is_google_account=True,
             role="user",
             first_name=info.get("first_name") or None,
             last_name=info.get("last_name") or None,
@@ -94,6 +95,33 @@ def login_access_token(
     return user_service.login_user(db, form_data.username, form_data.password)
 
 
+@router.post("/forgot-password", summary="Request password reset email")
+@limiter.limit(lambda: f"{settings.RATE_LIMIT}/minute")
+def forgot_password(
+    request: Request,
+    body: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    token = user_service.forgot_password(db, body.email)
+    if token:
+        sent = send_password_reset_email(body.email, token)
+        if not sent:
+            reset_url = f"{settings.FRONTEND_URL}/auth/reset-password?token={token}"
+            logger.info("Password reset URL for %s: %s", body.email, reset_url)
+    return {"message": "If an account with that email exists, a password reset link has been sent."}
+
+
+@router.post("/reset-password", summary="Reset password with token")
+@limiter.limit(lambda: f"{settings.RATE_LIMIT}/minute")
+def reset_password(
+    request: Request,
+    body: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    user_service.reset_password(db, body.token, body.new_password)
+    return {"message": "Password reset successfully"}
+
+
 @router.get("/users/me", response_model=UserResponse, summary="Get current user profile")
 def read_current_user(
     current_user: User = Depends(get_current_user),
@@ -119,3 +147,12 @@ def change_password(
     db: Session = Depends(get_db),
 ):
     return user_service.change_password(db, current_user, pw_in)
+
+
+@router.post("/users/me/set-password", response_model=UserResponse, summary="Set password for Google-authenticated users")
+def set_password(
+    pw_in: PasswordSet,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return user_service.set_password(db, current_user, pw_in.new_password)

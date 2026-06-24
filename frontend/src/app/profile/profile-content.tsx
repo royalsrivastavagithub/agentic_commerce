@@ -5,10 +5,12 @@ import type { User, Address } from "@/types/api"
 import { useAuthStore } from "@/stores/auth-store"
 import { useRouter } from "next/navigation"
 import { useState, useEffect, useRef } from "react"
-import { User as UserIcon, Pencil, Check, X, Plus, Trash2 } from "lucide-react"
+import { User as UserIcon, Pencil, Check, X, Plus, Trash2, Lock } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { INDIA_STATES, INDIA_LOCATIONS } from "@/lib/india-locations"
 
@@ -35,6 +37,11 @@ function ProfileInner() {
   const [editValue, setEditValue] = useState("")
 
   // Address editing state
+  const [showChangePw, setShowChangePw] = useState(false)
+  const [pwCurrent, setPwCurrent] = useState("")
+  const [pwNew, setPwNew] = useState("")
+  const [pwConfirm, setPwConfirm] = useState("")
+
   const [addingNewAddr, setAddingNewAddr] = useState(false)
   const [newAddrData, setNewAddrData] = useState({
     label: "", street: "", city: "", state: "", pincode: "", country: "India",
@@ -55,6 +62,64 @@ function ProfileInner() {
     },
     onError: (err: Error) => toast.error(err.message),
   })
+
+  const changePassword = useMutation({
+    mutationFn: (data: { current_password: string; new_password: string }) =>
+      api.put("/auth/users/me/password", data),
+    onSuccess: () => {
+      toast.success("Password changed successfully")
+      setShowChangePw(false)
+      setPwCurrent("")
+      setPwNew("")
+      setPwConfirm("")
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  const setPassword = useMutation({
+    mutationFn: (data: { new_password: string }) =>
+      api.post("/auth/users/me/set-password", data),
+    onSuccess: () => {
+      toast.success("Password set successfully — you can now also log in with email/password")
+      setShowChangePw(false)
+      setPwCurrent("")
+      setPwNew("")
+      setPwConfirm("")
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  const handleChangePassword = () => {
+    if (!pwCurrent || !pwNew || !pwConfirm) {
+      toast.error("All fields are required")
+      return
+    }
+    if (pwNew !== pwConfirm) {
+      toast.error("New passwords do not match")
+      return
+    }
+    if (pwNew.length < 8) {
+      toast.error("New password must be at least 8 characters")
+      return
+    }
+    changePassword.mutate({ current_password: pwCurrent, new_password: pwNew })
+  }
+
+  const handleSetPassword = () => {
+    if (!pwNew || !pwConfirm) {
+      toast.error("All fields are required")
+      return
+    }
+    if (pwNew !== pwConfirm) {
+      toast.error("Passwords do not match")
+      return
+    }
+    if (pwNew.length < 8) {
+      toast.error("Password must be at least 8 characters")
+      return
+    }
+    setPassword.mutate({ new_password: pwNew })
+  }
 
   const createAddress = useMutation({
     mutationFn: (data: Record<string, unknown>) => api.post("/users/me/addresses", data),
@@ -189,6 +254,56 @@ function ProfileInner() {
             )}
           />
 
+        </div>
+
+        {/* Password */}
+        <div className="mt-8">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-bold">Password</h2>
+            <Dialog open={showChangePw} onOpenChange={setShowChangePw}>
+              <DialogTrigger className="flex items-center gap-1 rounded bg-amazon-link px-3 py-1.5 text-sm font-medium text-white hover:brightness-95">
+                <Lock className="h-4 w-4" /> {p?.is_google_account ? "Set Password" : "Change Password"}
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{p?.is_google_account ? "Set Password" : "Change Password"}</DialogTitle>
+                  <DialogDescription>
+                    {p?.is_google_account
+                      ? "You signed up with Google. Set a password to also log in with email."
+                      : "Enter your current password and a new password."}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  {!p?.is_google_account && (
+                    <div className="space-y-1">
+                      <Label htmlFor="pw-current">Current Password</Label>
+                      <Input id="pw-current" type="password" value={pwCurrent}
+                        onChange={(e) => setPwCurrent(e.target.value)} />
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <Label htmlFor="pw-new">New Password</Label>
+                    <Input id="pw-new" type="password" value={pwNew}
+                      onChange={(e) => setPwNew(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="pw-confirm">Confirm New Password</Label>
+                    <Input id="pw-confirm" type="password" value={pwConfirm}
+                      onChange={(e) => setPwConfirm(e.target.value)} />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3">
+                  <DialogClose className={buttonVariants({ variant: "outline" })}>Cancel</DialogClose>
+                  <Button
+                    onClick={p?.is_google_account ? handleSetPassword : handleChangePassword}
+                    disabled={changePassword.isPending || setPassword.isPending}
+                  >
+                    {changePassword.isPending || setPassword.isPending ? "Saving..." : "Save"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Addresses */}

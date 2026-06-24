@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -98,6 +100,54 @@ def change_password(db: Session, user: User, pw_in: PasswordChange) -> User:
     if not verify_password(pw_in.current_password, user.hashed_password):
         raise BadRequestError("Current password is incorrect")
     user.hashed_password = get_password_hash(pw_in.new_password)
+    user.is_google_account = False
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def set_password(db: Session, user: User, new_password: str) -> User:
+    user.hashed_password = get_password_hash(new_password)
+    user.is_google_account = False
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def forgot_password(db: Session, email: str) -> str | None:
+    user = (
+        db.query(User)
+        .filter(func.lower(User.email) == func.lower(email))
+        .first()
+    )
+    if not user:
+        return None
+    token = generate_verification_token()
+    user.reset_password_token = token
+    user.reset_password_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    db.commit()
+    return token
+
+
+def reset_password(db: Session, token: str, new_password: str) -> User:
+    user = (
+        db.query(User)
+        .filter(User.reset_password_token == token)
+        .first()
+    )
+    if not user:
+        raise BadRequestError("Invalid or expired reset token")
+    if (
+        not user.reset_password_token_expires_at
+        or datetime.now(timezone.utc) > user.reset_password_token_expires_at
+    ):
+        user.reset_password_token = None
+        user.reset_password_token_expires_at = None
+        db.commit()
+        raise BadRequestError("Invalid or expired reset token")
+    user.hashed_password = get_password_hash(new_password)
+    user.reset_password_token = None
+    user.reset_password_token_expires_at = None
     db.commit()
     db.refresh(user)
     return user

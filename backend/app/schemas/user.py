@@ -34,6 +34,7 @@ class UserResponse(UserBase):
     id: int
     is_active: bool
     is_verified: bool
+    is_google_account: bool = False
     role: str = "user"
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -65,6 +66,36 @@ class PasswordChange(BaseModel):
     current_password: str
     new_password: str
 
+class PasswordSet(BaseModel):
+    new_password: str = Field(min_length=8, max_length=16)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        if not re.match(PASSWORD_REGEX, v):
+            raise ValueError(
+                "Password must be 8-16 characters with at least one uppercase, "
+                "one lowercase, one digit, and one symbol"
+            )
+        return v
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=16)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        if not re.match(PASSWORD_REGEX, v):
+            raise ValueError(
+                "Password must be 8-16 characters with at least one uppercase, "
+                "one lowercase, one digit, and one symbol"
+            )
+        return v
