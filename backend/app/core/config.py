@@ -69,4 +69,9 @@ class Settings(BaseSettings):
         description="Frontend base URL for building verification links"
     )
 
+    RATE_LIMIT: int = Field(
+        default=30,
+        description="Rate limit per minute for auth endpoints"
+    )
+
 settings = Settings()

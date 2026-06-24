@@ -158,3 +158,12 @@ def user_token_headers(db):
     db.refresh(user)
     token = create_access_token(subject=user.id, role=user.role)
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(scope="function")
+def low_rate_limit():
+    from app.core.config import settings
+    original = settings.RATE_LIMIT
+    settings.RATE_LIMIT = 5
+    yield
+    settings.RATE_LIMIT = original

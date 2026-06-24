@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.limiter import limiter
+from app.core.config import settings
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, UserUpdate, PasswordChange, Token, TokenWithUser, UserLogin
@@ -25,7 +26,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED, summary="Register a new user")
-@limiter.limit("30/minute")
+@limiter.limit(lambda: f"{settings.RATE_LIMIT}/minute")
 def signup(request: Request, user_in: UserCreate, db: Session = Depends(get_db)):
     new_user = user_service.register_user(db, user_in)
     token = new_user.verification_token
@@ -37,7 +38,7 @@ def signup(request: Request, user_in: UserCreate, db: Session = Depends(get_db))
 
 
 @router.get("/verify-email", summary="Verify email address with token")
-@limiter.limit("30/minute")
+@limiter.limit(lambda: f"{settings.RATE_LIMIT}/minute")
 def verify_email(
     request: Request,
     token: str = Query(..., description="The verification token printed during signup"),
@@ -78,13 +79,13 @@ def google_login(body: GoogleLoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenWithUser, summary="Login with email and password (JSON)")
-@limiter.limit("30/minute")
+@limiter.limit(lambda: f"{settings.RATE_LIMIT}/minute")
 def login(request: Request, user_in: UserLogin, db: Session = Depends(get_db)):
     return user_service.login_user(db, user_in.email, user_in.password)
 
 
 @router.post("/login/access-token", response_model=TokenWithUser, summary="Login with email and password (form)")
-@limiter.limit("30/minute")
+@limiter.limit(lambda: f"{settings.RATE_LIMIT}/minute")
 def login_access_token(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -110,7 +111,7 @@ def update_current_user(
 
 
 @router.put("/users/me/password", response_model=UserResponse, summary="Change current user password")
-@limiter.limit("30/minute")
+@limiter.limit(lambda: f"{settings.RATE_LIMIT}/minute")
 def change_password(
     request: Request,
     pw_in: PasswordChange,

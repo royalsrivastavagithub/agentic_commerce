@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from fastapi.testclient import TestClient
 
 from app.models.user import User
-from app.core.security import create_access_token
+from app.core.security import create_access_token, get_password_hash
 from app.core.config import settings
 
 def test_signup_flow(client: TestClient, db: Session):
@@ -279,7 +279,7 @@ class TestUserState:
     def test_inactive_user_login_fails(self, client: TestClient, db: Session):
         user = User(
             email="inactive@test.com",
-            hashed_password="Tes@1234",
+            hashed_password=get_password_hash("Tes@1234"),
             is_active=False,
             is_verified=True,
         )
@@ -408,7 +408,6 @@ class TestUserProfile:
         db.commit()
         db.refresh(user)
         # Override hashed_password with a real hash so verify_password works
-        from app.core.security import get_password_hash
         user.hashed_password = get_password_hash("Tes@1234")
         db.commit()
 
@@ -445,8 +444,8 @@ class TestUserProfile:
         assert resp.status_code == 400
         assert resp.json()["detail"] == "Current password is incorrect"
 
-    def test_rate_limiting_on_login(self, client: TestClient):
-        MAX_R = 50
+    def test_rate_limiting_on_login(self, client: TestClient, low_rate_limit):
+        MAX_R = 6
         got_429 = False
         for _ in range(MAX_R):
             resp = client.post(
@@ -458,8 +457,8 @@ class TestUserProfile:
                 break
         assert got_429, f"Rate limiter did not trigger after {MAX_R} login requests"
 
-    def test_rate_limiting_on_signup(self, client: TestClient):
-        MAX_R = 50
+    def test_rate_limiting_on_signup(self, client: TestClient, low_rate_limit):
+        MAX_R = 6
         got_429 = False
         for i in range(MAX_R):
             resp = client.post(
@@ -471,13 +470,13 @@ class TestUserProfile:
                 break
         assert got_429, f"Rate limiter did not trigger after {MAX_R} signup requests"
 
-    def test_rate_limiting_on_change_password(self, client: TestClient, db: Session):
+    def test_rate_limiting_on_change_password(self, client: TestClient, db: Session, low_rate_limit):
         user = User(email="ratepw@test.com", hashed_password="Tes@1234", is_active=True, is_verified=True)
         db.add(user)
         db.commit()
         token = create_access_token(subject=user.id, role="user")
         headers = {"Authorization": f"Bearer {token}"}
-        MAX_R = 50
+        MAX_R = 6
         got_429 = False
         for _ in range(MAX_R):
             resp = client.put(

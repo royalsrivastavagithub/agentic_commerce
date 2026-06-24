@@ -27,7 +27,7 @@ test.describe("Login flow", () => {
     const context = await browser.newContext({ storageState: undefined })
     const page = await context.newPage()
     await page.goto("/auth/login")
-    await page.fill('input[type="email"]', "wrong@test.com")
+    await page.fill('input[type="email"]', "alice@test.com")
     await page.fill('input[type="password"]', "wrongpass")
     await page.getByRole("button", { name: "Sign in", exact: true }).click()
     await expect(page.getByText("Invalid credentials")).toBeVisible({ timeout: 10000 })
