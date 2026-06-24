@@ -470,6 +470,133 @@ class TestUserProfile:
                 break
         assert got_429, f"Rate limiter did not trigger after {MAX_R} signup requests"
 
+class TestForgotResetPassword:
+    def test_forgot_password_success(self, client: TestClient, db: Session):
+        client.post("/api/v1/auth/signup", json={"email": "forgot@test.com", "password": "Tes@1234"})
+        resp = client.post("/api/v1/auth/forgot-password", json={"email": "forgot@test.com"})
+        assert resp.status_code == 200
+        assert "message" in resp.json()
+        user = db.query(User).filter(User.email == "forgot@test.com").first()
+        assert user.reset_password_token is not None
+        assert user.reset_password_token_expires_at is not None
+
+    def test_forgot_password_nonexistent_email(self, client: TestClient):
+        resp = client.post("/api/v1/auth/forgot-password", json={"email": "nobody@nowhere.com"})
+        assert resp.status_code == 200
+        assert "message" in resp.json()
+
+    def test_forgot_password_invalid_email(self, client: TestClient):
+        resp = client.post("/api/v1/auth/forgot-password", json={"email": "not-an-email"})
+        assert resp.status_code == 422
+
+    def test_reset_password_success(self, client: TestClient, db: Session):
+        client.post("/api/v1/auth/signup", json={"email": "resetok@test.com", "password": "Tes@1234"})
+        user = db.query(User).filter(User.email == "resetok@test.com").first()
+        client.get(f"/api/v1/auth/verify-email?token={user.verification_token}")
+        client.post("/api/v1/auth/forgot-password", json={"email": "resetok@test.com"})
+        db.refresh(user)
+        token = user.reset_password_token
+        resp = client.post("/api/v1/auth/reset-password", json={"token": token, "new_password": "N3wP@ss!x"})
+        assert resp.status_code == 200
+        assert resp.json()["message"] == "Password reset successfully"
+        login_resp = client.post("/api/v1/auth/login", json={"email": "resetok@test.com", "password": "N3wP@ss!x"})
+        assert login_resp.status_code == 200
+
+    def test_reset_password_invalid_token(self, client: TestClient):
+        resp = client.post("/api/v1/auth/reset-password", json={"token": "bogus-token", "new_password": "N3wP@ss!x"})
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Invalid or expired reset token"
+
+    def test_reset_password_expired_token(self, client: TestClient, db: Session):
+        from datetime import timedelta
+        user = User(
+            email="expiredrst@test.com",
+            hashed_password=get_password_hash("Tes@1234"),
+            is_active=True,
+            is_verified=True,
+            reset_password_token="expired-token",
+            reset_password_token_expires_at=datetime.now(timezone.utc) - timedelta(hours=2),
+        )
+        db.add(user)
+        db.commit()
+        resp = client.post("/api/v1/auth/reset-password", json={"token": "expired-token", "new_password": "N3wP@ss!x"})
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Invalid or expired reset token"
+
+    def test_reset_password_weak_password(self, client: TestClient, db: Session):
+        client.post("/api/v1/auth/signup", json={"email": "weakreset@test.com", "password": "Tes@1234"})
+        user = db.query(User).filter(User.email == "weakreset@test.com").first()
+        user.reset_password_token = "valid-token"
+        user.reset_password_token_expires_at = datetime.now(timezone.utc)
+        db.commit()
+        resp = client.post("/api/v1/auth/reset-password", json={"token": "valid-token", "new_password": "weak"})
+        assert resp.status_code == 422
+
+class TestSetPassword:
+    def test_set_password_success(self, client: TestClient, db: Session):
+        user = User(
+            email="setpw@test.com",
+            hashed_password=get_password_hash("Tes@1234"),
+            is_active=True,
+            is_verified=True,
+            is_google_account=True,
+        )
+        db.add(user)
+        db.commit()
+        token = create_access_token(subject=user.id, role=user.role)
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = client.post("/api/v1/auth/users/me/set-password", json={"new_password": "N3wP@ss!x"}, headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_google_account"] is False
+        db.refresh(user)
+        assert user.is_google_account is False
+        login_resp = client.post("/api/v1/auth/login", json={"email": "setpw@test.com", "password": "N3wP@ss!x"})
+        assert login_resp.status_code == 200
+
+    def test_set_password_unauthorized(self, client: TestClient):
+        resp = client.post("/api/v1/auth/users/me/set-password", json={"new_password": "N3wP@ss!x"})
+        assert resp.status_code == 401
+
+    def test_set_password_weak_password(self, client: TestClient, user_token_headers):
+        resp = client.post("/api/v1/auth/users/me/set-password", json={"new_password": "weak"}, headers=user_token_headers)
+        assert resp.status_code == 422
+
+    def test_set_password_then_login(self, client: TestClient, db: Session):
+        user = User(
+            email="setpw2@test.com",
+            hashed_password=get_password_hash("Tes@1234"),
+            is_active=True,
+            is_verified=True,
+            is_google_account=True,
+        )
+        db.add(user)
+        db.commit()
+        token = create_access_token(subject=user.id, role=user.role)
+        client.post("/api/v1/auth/users/me/set-password", json={"new_password": "N3wP@ss!x"}, headers={"Authorization": f"Bearer {token}"})
+        login_resp = client.post("/api/v1/auth/login", json={"email": "setpw2@test.com", "password": "N3wP@ss!x"})
+        assert login_resp.status_code == 200
+
+    def test_rate_limiting_on_forgot_password(self, client: TestClient, db: Session, low_rate_limit):
+        MAX_R = 6
+        got_429 = False
+        for _ in range(MAX_R):
+            resp = client.post("/api/v1/auth/forgot-password", json={"email": "ratelimit-forgot@test.com"})
+            if resp.status_code == 429:
+                got_429 = True
+                break
+        assert got_429, f"Rate limiter did not trigger after {MAX_R} forgot-password requests"
+
+    def test_rate_limiting_on_reset_password(self, client: TestClient, db: Session, low_rate_limit):
+        MAX_R = 6
+        got_429 = False
+        for _ in range(MAX_R):
+            resp = client.post("/api/v1/auth/reset-password", json={"token": "any", "new_password": "N3wP@ss!x"})
+            if resp.status_code == 429:
+                got_429 = True
+                break
+        assert got_429, f"Rate limiter did not trigger after {MAX_R} reset-password requests"
+
     def test_rate_limiting_on_change_password(self, client: TestClient, db: Session, low_rate_limit):
         user = User(email="ratepw@test.com", hashed_password="Tes@1234", is_active=True, is_verified=True)
         db.add(user)

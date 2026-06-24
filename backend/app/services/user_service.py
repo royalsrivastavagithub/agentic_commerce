@@ -139,7 +139,7 @@ def reset_password(db: Session, token: str, new_password: str) -> User:
         raise BadRequestError("Invalid or expired reset token")
     if (
         not user.reset_password_token_expires_at
-        or datetime.now(timezone.utc) > user.reset_password_token_expires_at
+        or datetime.now(timezone.utc).replace(tzinfo=None) > user.reset_password_token_expires_at.replace(tzinfo=None)
     ):
         user.reset_password_token = None
         user.reset_password_token_expires_at = None
