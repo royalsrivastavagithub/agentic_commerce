@@ -248,6 +248,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </Link>
             )}
 
+            {/* AI Assistant */}
+            <button
+              type="button"
+              onClick={() => router.push("/agent")}
+              className="flex items-center gap-1 px-2 py-1.5 text-white hover:opacity-80"
+              aria-label="AI Assistant"
+            >
+              <Bot className="h-5 w-5" />
+              <span className="hidden text-xs font-bold leading-tight sm:inline">AI</span>
+            </button>
+
             {/* Theme toggle */}
             <button
               type="button"

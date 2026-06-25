@@ -47,8 +47,10 @@ export function AgentChat() {
     setError(null)
 
     try {
+      const history = messages.slice(-20).map((m) => ({ role: m.role, content: m.content }))
       const data = await api.post<{ response: string }>("/chat", {
         message: text,
+        history,
       })
       setMessages((prev) => [
         ...prev,

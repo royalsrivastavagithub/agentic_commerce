@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from langchain_core.messages import HumanMessage
 from sqlalchemy.orm import Session
 
-from app.ai import build_agent, ChatRequest, ChatResponse
+from app.ai import run_chat, ChatRequest, ChatResponse
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
@@ -23,9 +22,11 @@ def chat(
         )
 
     try:
-        agent = build_agent(db, current_user)
-        result = agent.invoke({"messages": [HumanMessage(content=body.message)]})
-        response_text = result["messages"][-1].content
+        history_text = "\n".join(
+            f"{'User' if h.role == 'user' else 'Assistant'}: {h.content}"
+            for h in body.history
+        )
+        response_text = run_chat(db, current_user, history_text, body.message)
         return ChatResponse(response=response_text or "")
     except Exception as e:
         raise HTTPException(
