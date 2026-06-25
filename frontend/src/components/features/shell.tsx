@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ShoppingCart, Search, Menu, LogOut, Package, Heart, UserIcon, Moon, Sun, X } from "lucide-react"
+import { ShoppingCart, Search, Menu, LogOut, Package, Heart, UserIcon, Moon, Sun, X, Bot } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -217,6 +217,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   <DropdownMenuItem onClick={() => router.push("/wishlist")}>
                     <Heart className="mr-2 h-4 w-4" />
                     Your Wishlist
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/agent")}>
+                    <Bot className="mr-2 h-4 w-4" />
+                    AI Assistant
                   </DropdownMenuItem>
                   {user?.role === "admin" && (
                     <>

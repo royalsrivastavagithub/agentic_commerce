@@ -58,7 +58,8 @@ def make_tools(db: Session, user: User) -> list:
             price = f"${p.price:.2f}"
             rating = f"{p.rating}/5" if p.rating else "N/A"
             brand = f" [{p.brand}]" if p.brand else ""
-            lines.append(f"- {p.title}{brand} — {price} ★{rating}")
+            lines.append(f"![{p.title}]({p.thumbnail})")
+            lines.append(f"- **{p.title}**{brand} — {price} ★{rating}")
         return "\n".join(lines)
 
     @tool
@@ -75,6 +76,7 @@ def make_tools(db: Session, user: User) -> list:
         stock = f"In stock ({p.stock} available)" if p.stock > 0 else "Out of stock"
 
         return (
+            f"![{p.title}]({p.thumbnail})\n\n"
             f"**{p.title}**\n"
             f"Brand: {p.brand or 'N/A'}\n"
             f"Price: {price} ({discount})\n"

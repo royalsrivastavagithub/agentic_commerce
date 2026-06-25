@@ -17,23 +17,43 @@ from app.models.user import User
 from app.core.security import get_password_hash, create_access_token
 
 
-def _seed_admin():
-    ADMIN_EMAIL = "admin@admin.com"
-    ADMIN_PASSWORD = "admin"
+def _seed_users():
+    SEED_USERS = [
+        {
+            "email": "admin@admin.com",
+            "password": "admin",
+            "role": "admin",
+            "first_name": "Admin",
+            "last_name": "User",
+        },
+        {
+            "email": "test@test.com",
+            "password": "test",
+            "role": "user",
+            "first_name": "Test",
+            "last_name": "User",
+            "phone": "+1-555-123-4567",
+            "gender": "male",
+        },
+    ]
     db = Session(bind=engine)
     try:
-        existing = db.query(User).filter(User.email == ADMIN_EMAIL).first()
-        if not existing:
-            admin = User(
-                email=ADMIN_EMAIL,
-                hashed_password=get_password_hash(ADMIN_PASSWORD),
-                role="admin",
-                is_active=True,
-                is_verified=True,
-            )
-            db.add(admin)
-            db.commit()
-            db.refresh(admin)
+        for data in SEED_USERS:
+            existing = db.query(User).filter(User.email == data["email"]).first()
+            if not existing:
+                user = User(
+                    email=data["email"],
+                    hashed_password=get_password_hash(data["password"]),
+                    role=data["role"],
+                    is_active=True,
+                    is_verified=True,
+                    first_name=data.get("first_name"),
+                    last_name=data.get("last_name"),
+                    phone=data.get("phone"),
+                    gender=data.get("gender"),
+                )
+                db.add(user)
+        db.commit()
     finally:
         db.close()
 
@@ -41,7 +61,7 @@ def _seed_admin():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    _seed_admin()
+    _seed_users()
     yield
 
 

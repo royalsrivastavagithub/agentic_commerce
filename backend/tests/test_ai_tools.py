@@ -75,6 +75,7 @@ class TestSearchProducts:
         assert "$699.99" in result
         assert "TechBrand" in result
         assert "4.5/5" in result
+        assert "https://example.com/thumb.jpg" in result
 
     def test_no_match(self, tools):
         result = tools[0].invoke({"query": "zzz_nonexistent"})
@@ -106,6 +107,7 @@ class TestGetProductDetails:
         assert "4.5/5" in result
         assert "TechBrand" in result
         assert "1 year" in result
+        assert "https://example.com/thumb.jpg" in result
 
     def test_not_found(self, tools):
         result = tools[1].invoke({"product_id": 99999})
