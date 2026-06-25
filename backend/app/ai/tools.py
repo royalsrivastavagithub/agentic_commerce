@@ -63,8 +63,7 @@ def make_tools(db: Session, user: User, found_products: list | None = None) -> l
             price = f"${p.price:.2f}"
             rating = f"{p.rating}/5" if p.rating else "N/A"
             brand = f" [{p.brand}]" if p.brand else ""
-            lines.append(f"![{p.title}]({p.thumbnail})")
-            lines.append(f"- **{p.title}**{brand} — {price} ★{rating}")
+            lines.append(f"- **{p.title}**{brand} (ID: {p.id}) — {price} ★{rating}")
         return "\n".join(lines)
 
     @tool
@@ -79,22 +78,13 @@ def make_tools(db: Session, user: User, found_products: list | None = None) -> l
             found_products.append(p)
 
         price = f"${p.price:.2f}"
-        discount = f"{p.discount_percentage:.0f}% off" if p.discount_percentage > 0 else "No discount"
-        rating = f"{p.rating}/5 ({p.review_count} reviews)" if p.rating else "No reviews yet"
+        rating = f"{p.rating}/5" if p.rating else "N/A"
         stock = f"In stock ({p.stock} available)" if p.stock > 0 else "Out of stock"
 
         return (
-            f"![{p.title}]({p.thumbnail})\n\n"
-            f"**{p.title}**\n"
-            f"Brand: {p.brand or 'N/A'}\n"
-            f"Price: {price} ({discount})\n"
-            f"Rating: {rating}\n"
-            f"Stock: {stock}\n"
-            f"Category: {p.category}\n"
-            f"Description: {p.description}\n"
-            f"Warranty: {p.warranty_information}\n"
-            f"Shipping: {p.shipping_information}\n"
-            f"Return policy: {p.return_policy}"
+            f"**{p.title}** (ID: {p.id}) — {price} ★{rating} — {p.brand or 'N/A'} — {p.category or 'N/A'}\n"
+            f"{stock}\n"
+            f"{p.description}"
         )
 
     @tool
@@ -116,7 +106,7 @@ def make_tools(db: Session, user: User, found_products: list | None = None) -> l
         try:
             p = _get_product_by_id(db, product_id)
             _add_cart_item(db, user.id, product_id, quantity)
-            return f"Added {quantity} × **{p.title}** to your cart."
+            return f"Added {quantity} × **{p.title}** (ID: {p.id}) to your cart."
         except (BadRequestError, NotFoundError) as e:
             return str(e)
 
@@ -136,7 +126,7 @@ def make_tools(db: Session, user: User, found_products: list | None = None) -> l
             subtotal = item.quantity * item.product_price
             total += subtotal
             lines.append(
-                f"- {product.title} x{item.quantity} "
+                f"- {product.title} (ID: {product.id}) x{item.quantity} "
                 f"@ ${item.product_price:.2f} = ${subtotal:.2f}"
             )
         lines.append(f"\nTotal: ${total:.2f}")

@@ -101,16 +101,9 @@ export function AgentChat() {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col">
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold tracking-tight">AI Shopping Assistant</h1>
-        <p className="text-sm text-muted-foreground">
-          Ask me to find products, check prices, browse categories, or view your cart.
-        </p>
-      </div>
-
+    <div className="flex flex-1 flex-col">
       <div className="flex flex-1 flex-col overflow-hidden rounded-lg border bg-card">
-        <div className="flex-1 space-y-4 overflow-y-auto p-4" style={{ maxHeight: "60vh" }}>
+        <div className="flex-1 space-y-4 overflow-y-auto p-4">
           {messages.map((msg, i) => (
             <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
               {msg.role === "assistant" && (
@@ -139,10 +132,7 @@ export function AgentChat() {
                     )}
                   </>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 shrink-0" />
-                    <span className="text-sm">{msg.content}</span>
-                  </div>
+                  <div className="text-sm">{msg.content}</div>
                 )}
               </div>
               {msg.role === "user" && (
