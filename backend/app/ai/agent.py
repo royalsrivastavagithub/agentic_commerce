@@ -94,7 +94,11 @@ def run_chat(db: Session, user: User, history: list[dict], current_message: str)
                 except NotFoundError:
                     pass
 
-            return response_text, [_product_to_dict(p) for p in _deduplicate(found_products)]
+            captured = [p for p in found_products if p.id in mentioned_ids]
+
+            clean_text = re.sub(r'\s*\(ID:\s*\d+\)', '', response_text)
+            clean_text = clean_text.replace('**', '')
+            return clean_text, [_product_to_dict(p) for p in _deduplicate(captured)]
 
         messages.append(result)
         for tc in result.tool_calls:
