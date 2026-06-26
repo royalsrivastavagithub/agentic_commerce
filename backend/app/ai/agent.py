@@ -136,7 +136,13 @@ def run_chat(
         result = model_with_tools.invoke(messages)
 
         if not result.tool_calls:
-            response_text = (result.content or "").strip()
+            raw = result.content
+            if isinstance(raw, list):
+                response_text = " ".join(
+                    part.get("text", "") for part in raw if isinstance(part, dict)
+                ).strip()
+            else:
+                response_text = (raw or "").strip()
             if not response_text:
                 if last_tool_message:
                     response_text = last_tool_message
