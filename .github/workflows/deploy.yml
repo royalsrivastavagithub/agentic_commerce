@@ -1,0 +1,34 @@
+```yaml
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Update repository
+        run: |
+          cd /srv/Agentic_Commerce
+          git fetch origin
+          git reset --hard origin/main
+          git clean -fd
+
+      - name: Install dependencies
+        run: |
+          cd /srv/Agentic_Commerce/backend
+          /home/royal/.local/bin/uv sync
+
+      - name: Run database migrations
+        run: |
+          cd /srv/Agentic_Commerce/backend
+          /home/royal/.local/bin/uv run alembic upgrade head
+
+      - name: Restart backend
+        run: |
+          sudo systemctl restart agentic-commerce
+```

@@ -1,8 +1,8 @@
-"""initial
+"""Initial schema
 
-Revision ID: 9d16943b1d11
+Revision ID: 10609ad05102
 Revises: 
-Create Date: 2026-06-24 00:26:34.344547
+Create Date: 2026-06-26 13:08:51.314612
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '9d16943b1d11'
+revision: str = '10609ad05102'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -37,6 +37,9 @@ def upgrade() -> None:
     sa.Column('is_active', sa.Boolean(), nullable=True),
     sa.Column('is_verified', sa.Boolean(), nullable=True),
     sa.Column('verification_token', sa.String(), nullable=True),
+    sa.Column('is_google_account', sa.Boolean(), nullable=True),
+    sa.Column('reset_password_token', sa.String(), nullable=True),
+    sa.Column('reset_password_token_expires_at', sa.DateTime(), nullable=True),
     sa.Column('role', sa.String(), nullable=False),
     sa.Column('first_name', sa.String(), nullable=True),
     sa.Column('last_name', sa.String(), nullable=True),
@@ -78,6 +81,18 @@ def upgrade() -> None:
     )
     with op.batch_alter_table('carts', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_carts_id'), ['id'], unique=False)
+
+    op.create_table('conversations',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('state_json', sa.JSON(), nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('conversations', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_conversations_id'), ['id'], unique=False)
 
     op.create_table('orders',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -129,7 +144,7 @@ def upgrade() -> None:
     sa.Column('meta', sa.JSON(), nullable=False),
     sa.Column('images', sa.JSON(), nullable=False),
     sa.Column('thumbnail', sa.String(), nullable=False),
-    sa.Column('is_featured', sa.Boolean(), server_default='false', nullable=True),
+    sa.Column('is_featured', sa.Boolean(), server_default=sa.text('false'), nullable=True),
     sa.ForeignKeyConstraint(['category_id'], ['categories.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('sku')
@@ -153,6 +168,19 @@ def upgrade() -> None:
     with op.batch_alter_table('cart_items', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_cart_items_id'), ['id'], unique=False)
         batch_op.create_index(batch_op.f('ix_cart_items_product_id'), ['product_id'], unique=False)
+
+    op.create_table('conversation_messages',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('conversation_id', sa.Integer(), nullable=False),
+    sa.Column('role', sa.String(), nullable=False),
+    sa.Column('content', sa.Text(), nullable=False),
+    sa.Column('product_ids', sa.JSON(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['conversation_id'], ['conversations.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('conversation_messages', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_conversation_messages_id'), ['id'], unique=False)
 
     op.create_table('order_items',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -257,6 +285,10 @@ def downgrade() -> None:
         batch_op.drop_index(batch_op.f('ix_order_items_id'))
 
     op.drop_table('order_items')
+    with op.batch_alter_table('conversation_messages', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_conversation_messages_id'))
+
+    op.drop_table('conversation_messages')
     with op.batch_alter_table('cart_items', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_cart_items_product_id'))
         batch_op.drop_index(batch_op.f('ix_cart_items_id'))
@@ -274,6 +306,10 @@ def downgrade() -> None:
         batch_op.drop_index(batch_op.f('ix_orders_id'))
 
     op.drop_table('orders')
+    with op.batch_alter_table('conversations', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_conversations_id'))
+
+    op.drop_table('conversations')
     with op.batch_alter_table('carts', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_carts_id'))
 
