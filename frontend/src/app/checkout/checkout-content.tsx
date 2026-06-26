@@ -173,7 +173,7 @@ function CheckoutInner() {
 
           {showAddForm && (
             <div className="mb-4 space-y-3 rounded-lg border bg-muted/50 p-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label htmlFor="checkout-label" className="mb-1 block text-xs font-medium text-muted-foreground">Label (Home/Work)</label>
                   <input id="checkout-label" placeholder="e.g. Home" value={newAddr.label} onChange={(e) => setNewAddr({ ...newAddr, label: e.target.value })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />

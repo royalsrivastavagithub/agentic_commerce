@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet"
 
 import { useAuthStore } from "@/stores/auth-store"
 import { useQuery } from "@tanstack/react-query"
@@ -197,67 +198,151 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
           {/* Right section */}
           <nav className="ml-auto flex items-center gap-1 sm:gap-3">
-            {isAuthenticated ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex flex-col items-start px-1 py-0.5 text-left text-white hover:opacity-80">
-                  <span className="text-[10px] leading-none text-gray-300 sm:text-xs">Hello, {user?.first_name || user?.email}</span>
-                  <span className="text-xs font-bold leading-tight sm:text-sm">Account & Lists</span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <div className="px-2 py-1.5 text-sm font-medium text-gray-500">{user?.email}</div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => router.push("/profile")}>
-                    <UserIcon className="mr-2 h-4 w-4" />
-                    Your Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/orders")}>
-                    <Package className="mr-2 h-4 w-4" />
-                    Your Orders
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/wishlist")}>
-                    <Heart className="mr-2 h-4 w-4" />
-                    Your Wishlist
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/agent")}>
-                    <Bot className="mr-2 h-4 w-4" />
-                    AI Assistant
-                  </DropdownMenuItem>
-                  {user?.role === "admin" && (
+            {/* Mobile hamburger */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center px-2 py-1.5 text-white hover:opacity-80 sm:hidden"
+                  aria-label="Menu"
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-64 pt-12">
+                <div className="space-y-1">
+                  {isAuthenticated ? (
                     <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => router.push("/admin")}>
-                        <Menu className="mr-2 h-4 w-4" />
-                        Admin Dashboard
-                      </DropdownMenuItem>
+                      <div className="border-b px-3 pb-3 mb-3">
+                        <p className="text-sm font-medium">Hello, {user?.first_name || user?.email}</p>
+                        <p className="text-xs text-muted-foreground">{user?.email}</p>
+                      </div>
+                      <SheetClose asChild>
+                        <button onClick={() => router.push("/profile")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                          <UserIcon className="h-4 w-4" />
+                          Your Profile
+                        </button>
+                      </SheetClose>
+                      <SheetClose asChild>
+                        <button onClick={() => router.push("/orders")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                          <Package className="h-4 w-4" />
+                          Your Orders
+                        </button>
+                      </SheetClose>
+                      <SheetClose asChild>
+                        <button onClick={() => router.push("/wishlist")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                          <Heart className="h-4 w-4" />
+                          Your Wishlist
+                        </button>
+                      </SheetClose>
+                      <SheetClose asChild>
+                        <button onClick={() => router.push("/agent")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                          <Bot className="h-4 w-4" />
+                          AI Assistant
+                        </button>
+                      </SheetClose>
+                      {user?.role === "admin" && (
+                        <SheetClose asChild>
+                          <button onClick={() => router.push("/admin")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                            <Menu className="h-4 w-4" />
+                            Admin Dashboard
+                          </button>
+                        </SheetClose>
+                      )}
+                      <div className="border-t mt-3 pt-3">
+                        <SheetClose asChild>
+                          <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-destructive hover:bg-muted">
+                            <LogOut className="h-4 w-4" />
+                            Sign Out
+                          </button>
+                        </SheetClose>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="px-3 py-2 text-sm font-medium">Welcome</div>
+                      <SheetClose asChild>
+                        <Link href="/auth/login" className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                          Sign In
+                        </Link>
+                      </SheetClose>
+                      <SheetClose asChild>
+                        <Link href="/auth/signup" className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                          Create Account
+                        </Link>
+                      </SheetClose>
                     </>
                   )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Link
-                href="/auth/login"
-                className="flex flex-col px-1 py-0.5 text-white hover:opacity-80"
-              >
-                <span className="text-[10px] leading-none text-gray-300 sm:text-xs">Hello, Sign in</span>
-                <span className="text-xs font-bold leading-tight sm:text-sm">Account & Lists</span>
-              </Link>
-            )}
+                </div>
+              </SheetContent>
+            </Sheet>
 
-            {/* AI Assistant */}
-            <button
-              type="button"
-              onClick={() => router.push("/agent")}
-              className="flex items-center gap-1 px-2 py-1.5 text-white hover:opacity-80"
-              aria-label="AI Assistant"
-            >
-              <Bot className="h-5 w-5" />
-              <span className="hidden text-xs font-bold leading-tight sm:inline">AI</span>
-            </button>
+            {/* Account dropdown — desktop only */}
+            <div className="hidden sm:block">
+              {isAuthenticated ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex flex-col items-start px-1 py-0.5 text-left text-white hover:opacity-80">
+                    <span className="text-[10px] leading-none text-gray-300 sm:text-xs">Hello, {user?.first_name || user?.email}</span>
+                    <span className="text-xs font-bold leading-tight sm:text-sm">Account & Lists</span>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="px-2 py-1.5 text-sm font-medium text-gray-500">{user?.email}</div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => router.push("/profile")}>
+                      <UserIcon className="mr-2 h-4 w-4" />
+                      Your Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/orders")}>
+                      <Package className="mr-2 h-4 w-4" />
+                      Your Orders
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/wishlist")}>
+                      <Heart className="mr-2 h-4 w-4" />
+                      Your Wishlist
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/agent")}>
+                      <Bot className="mr-2 h-4 w-4" />
+                      AI Assistant
+                    </DropdownMenuItem>
+                    {user?.role === "admin" && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => router.push("/admin")}>
+                          <Menu className="mr-2 h-4 w-4" />
+                          Admin Dashboard
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Link
+                  href="/auth/login"
+                  className="flex flex-col px-1 py-0.5 text-white hover:opacity-80"
+                >
+                  <span className="text-[10px] leading-none text-gray-300 sm:text-xs">Hello, Sign in</span>
+                  <span className="text-xs font-bold leading-tight sm:text-sm">Account & Lists</span>
+                </Link>
+              )}
+            </div>
+
+            {/* AI Assistant — desktop only */}
+            <div className="hidden sm:block">
+              <button
+                type="button"
+                onClick={() => router.push("/agent")}
+                className="flex items-center gap-1 px-2 py-1.5 text-white hover:opacity-80"
+                aria-label="AI Assistant"
+              >
+                <Bot className="h-5 w-5" />
+                <span className="text-xs font-bold leading-tight">AI</span>
+              </button>
+            </div>
 
             {/* Theme toggle */}
             <button

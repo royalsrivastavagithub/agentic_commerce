@@ -92,7 +92,7 @@ export default function HomeContent() {
               <h2 className="text-xl font-bold text-foreground">Today&apos;s Deals</h2>
               <Link href="/products?min_discount=10" className="text-sm font-medium text-amazon-link hover:underline">View All</Link>
             </div>
-            <div className="flex flex-wrap gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
               {dealProducts.slice(0, 7).map((product) => (
                 <MiniCard key={product.id} product={product} />
               ))}
@@ -119,7 +119,7 @@ export default function HomeContent() {
               <h2 className="text-xl font-bold text-foreground">Featured Products</h2>
               <Link href="/products?is_featured=true" className="text-sm font-medium text-amazon-link hover:underline">View All</Link>
             </div>
-            <div className="flex flex-wrap gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
               {products.slice(0, 7).map((product) => (
                 <MiniCard key={product.id} product={product} />
               ))}
@@ -199,7 +199,7 @@ function MiniCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="w-40 shrink-0 snap-start rounded-lg border bg-white p-2 transition-all hover:shadow-lg hover:-translate-y-0.5 dark:border-border dark:bg-card"
+      className="w-full sm:w-40 shrink-0 snap-start rounded-lg border bg-white p-2 transition-all hover:shadow-lg hover:-translate-y-0.5 dark:border-border dark:bg-card"
     >
       <div className="mb-2 h-28 overflow-hidden rounded-md bg-white">
         <img src={product.thumbnail || "/placeholder.svg"} alt={product.title} className="h-full w-full object-contain" />

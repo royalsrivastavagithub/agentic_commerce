@@ -89,7 +89,7 @@ function WishlistInner() {
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex gap-4 rounded-lg border bg-white p-3 dark:border-border dark:bg-card"
+              className="flex gap-3 sm:gap-4 rounded-lg border bg-white p-3 dark:border-border dark:bg-card"
             >
               <Link href={`/products/${item.product.id}`} className="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-white dark:bg-card">
                 <img

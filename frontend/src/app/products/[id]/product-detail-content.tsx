@@ -136,7 +136,7 @@ export default function ProductDetailContent() {
               <img
                 src={product.images?.[selectedImage] || product.thumbnail || "/placeholder.svg"}
                 alt={product.title}
-                className="h-96 w-full object-contain"
+                className="h-64 sm:h-80 lg:h-96 w-full object-contain"
               />
             </div>
             {product.images?.length > 1 && (

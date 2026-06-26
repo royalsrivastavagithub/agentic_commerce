@@ -357,6 +357,9 @@ app = FastAPI(
     version="0.1.0",
     openapi_tags=openapi_tags,
     lifespan=lifespan,
+    docs_url="/docs" if settings.DEV else None,
+    redoc_url="/redoc" if settings.DEV else None,
+    openapi_url="/openapi.json" if settings.DEV else None,
 )
 
 app.state.limiter = limiter
@@ -390,29 +393,29 @@ async def add_security_headers(request, call_next):
     return response
 
 
-def custom_openapi():
-    if app.openapi_schema:
-        return app.openapi_schema
-    openapi_schema = get_openapi(
-        title=settings.PROJECT_NAME,
-        version="0.1.0",
-        description="Backend API for Agentic Commerce. Provides a complete e-commerce backend with product catalog, user management, cart, orders, reviews, wishlist, and a full admin dashboard with analytics.",
-        routes=app.routes,
-        tags=openapi_tags,
-    )
-    openapi_schema["components"]["securitySchemes"] = {
-        "BearerAuth": {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT",
-            "description": "Enter your JWT access token. Get one from **POST /api/v1/auth/login** or **POST /api/v1/auth/login/access-token**.",
+if settings.DEV:
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+        openapi_schema = get_openapi(
+            title=settings.PROJECT_NAME,
+            version="0.1.0",
+            description="Backend API for Agentic Commerce. Provides a complete e-commerce backend with product catalog, user management, cart, orders, reviews, wishlist, and a full admin dashboard with analytics.",
+            routes=app.routes,
+            tags=openapi_tags,
+        )
+        openapi_schema["components"]["securitySchemes"] = {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Enter your JWT access token. Get one from **POST /api/v1/auth/login** or **POST /api/v1/auth/login/access-token**.",
+            }
         }
-    }
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
+        app.openapi_schema = openapi_schema
+        return app.openapi_schema
 
-
-app.openapi = custom_openapi
+    app.openapi = custom_openapi
 
 app.include_router(api_router, prefix="/api/v1")
 

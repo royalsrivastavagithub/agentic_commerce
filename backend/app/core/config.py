@@ -115,6 +115,11 @@ class Settings(BaseSettings):
         default="",
         description="Google Gemini API key (required when AI_PROVIDER=gemini)"
     )
+    DEV: bool = Field(
+        default=True,
+        description="Development mode — enables interactive API docs (Swagger, ReDoc, OpenAPI schema)"
+    )
+
     AI_MODEL: str = Field(
         default="",
         description="AI model name (e.g. gemini-2.0-flash, gemma4). Empty uses provider default"
