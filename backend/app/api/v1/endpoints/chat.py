@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -5,6 +7,8 @@ from app.ai import run_chat, ChatRequest, ChatResponse
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["chat"])
 
@@ -31,7 +35,8 @@ def chat(
             conversation_id=conversation_id,
         )
     except Exception as e:
+        logger.error("AI chat failed: %s", e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"AI service unavailable: {e}",
+            detail="AI service is temporarily unavailable. Please try again later.",
         )

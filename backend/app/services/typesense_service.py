@@ -1,8 +1,11 @@
+import logging
 import re
 import typesense
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 from app.models.product import Product
 from app.models.category import Category
 
@@ -24,7 +27,7 @@ def get_client() -> typesense.Client | None:
                 "connection_timeout_seconds": 2,
             })
         except Exception as e:
-            print(f"Typesense connection failed: {e}")
+            logger.error("Typesense connection failed: %s", e)
             _client = None
     return _client
 
@@ -57,10 +60,10 @@ def ensure_collection() -> bool:
         return True
     except typesense.exceptions.ObjectNotFound:
         client.collections.create(PRODUCTS_SCHEMA)
-        print("Created Typesense 'products' collection")
+        logger.info("Created Typesense 'products' collection")
         return True
     except Exception as e:
-        print(f"Typesense ensure_collection error: {e}")
+        logger.error("Typesense ensure_collection error: %s", e)
         return False
 
 
@@ -95,7 +98,7 @@ def reindex_all(db: Session) -> int:
     documents = [_product_to_document(p) for p in products]
     result = client.collections["products"].documents.import_(documents)
     imported = len(documents)
-    print(f"Indexed {imported} products to Typesense")
+    logger.info("Indexed %d products to Typesense", imported)
     return imported
 
 
@@ -173,7 +176,7 @@ def search_products(
         hits = result.get("hits", [])
         total = result.get("found", 0)
     except Exception as e:
-        print(f"Typesense search error: {e}")
+        logger.warning("Typesense search error: %s", e)
         hits, total = [], 0
 
     if not hits and len(query) >= 4:
@@ -186,7 +189,7 @@ def search_products(
             if hits2:
                 hits, total = hits2, total2
         except Exception as e:
-            print(f"Typesense typo fallback error: {e}")
+            logger.warning("Typesense typo fallback error: %s", e)
         finally:
             search_params["infix"] = "always"
             search_params.pop("num_typos", None)
@@ -217,7 +220,7 @@ def search_products(
                     hits = merged
                 return True
             except Exception as e:
-                print(f"Typesense search error (plural fallback): {e}")
+                logger.warning("Typesense search error (plural fallback): %s", e)
                 return False
 
         # Try stripping just "s" first (phones → phone)

@@ -11,6 +11,8 @@ from app.core.security import get_password_hash, create_access_token
 
 # Disable Typesense in tests
 settings.TYPESENSE_ENABLED = False
+# Ensure SECRET_KEY is set for test token generation
+settings.SECRET_KEY = "test-secret-key-for-testing-min-32-chars!"
 from app.models.user import User
 from app.models.category import Category
 from app.models.product import Product

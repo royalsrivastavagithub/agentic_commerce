@@ -356,7 +356,7 @@ class TestCreatePayment:
             headers=headers,
         )
         assert resp.status_code == 502
-        assert "razorpay" in resp.json()["detail"].lower()
+        assert "payment order" in resp.json()["detail"].lower()
 
     @patch("app.services.order_service.create_razorpay_order")
     def test_create_payment_shipping_name_falls_back_to_email(

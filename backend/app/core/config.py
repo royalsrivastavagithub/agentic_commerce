@@ -1,4 +1,4 @@
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -17,11 +17,21 @@ class Settings(BaseSettings):
     
     # JWT security configuration
     SECRET_KEY: str = Field(
-        default="SECRET_KEY_FOR_LOCAL_DEVELOPMENT_PLEASE_CHANGE_IN_PRODUCTION",
-        description="JWT signature secret key"
+        default="",
+        description="JWT signature secret key — must be set in production"
     )
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 30 minutes
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def secret_key_not_empty(cls, v: str) -> str:
+        if not v:
+            raise ValueError(
+                "SECRET_KEY is not configured. "
+                "Set it in your .env file or environment variable."
+            )
+        return v
 
     # CORS configuration — list of origins allowed for cross-origin requests.
     # In production, replace with your frontend's deployed URL.

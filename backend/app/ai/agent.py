@@ -20,19 +20,6 @@ from app.models.user import User
 from app.services.product_service import get_product_by_id as _get_product_by_id
 
 
-def _log_messages(messages: list, stage: str) -> None:
-    print(f"\n=== MODEL MESSAGES ({stage}) ===")
-    for i, m in enumerate(messages):
-        role = type(m).__name__
-        content = m.content if m.content else "(empty)"
-        if hasattr(m, "tool_calls") and m.tool_calls:
-            print(f"  [{i}] {role}: <{len(m.tool_calls)} tool_calls> content={content[:200]}")
-            for tc in m.tool_calls:
-                print(f"       -> {tc['name']}({json.dumps(tc['args'])})")
-        else:
-            print(f"  [{i}] {role}: {content[:300]}")
-    print(f"=== END ({stage}) ===\n")
-
 
 def get_model(temperature: float = 0.1) -> ChatOllama:
     return ChatOllama(model="gemma4", temperature=temperature)
@@ -130,7 +117,6 @@ def run_chat(
     messages.append(HumanMessage(content=current_message))
 
     model_with_tools = model.bind_tools(allowed_tools)
-    _log_messages(messages, f"initial (intent={intent})")
 
     product_ids: list[int] = []
     cart_items_map: dict[int, dict] = {}
@@ -138,11 +124,7 @@ def run_chat(
     last_tool_message = ""
 
     for iteration in range(6):
-        print(f"\n--- Iteration {iteration + 1} (intent={intent}) ---")
         result = model_with_tools.invoke(messages)
-        print(f"Result content: {result.content!r}")
-        if result.tool_calls:
-            print(f"Tool calls: {[(tc['name'], tc['args']) for tc in result.tool_calls]}")
 
         if not result.tool_calls:
             response_text = (result.content or "").strip()
@@ -193,8 +175,6 @@ def run_chat(
                 if "product_ids" in tool_result:
                     state.last_results = tool_result["product_ids"]
 
-            print(f"Tool '{tc['name']}' result: {json.dumps(tool_result, default=str)[:300]}")
-
             if tc["name"] in ("search_products", "get_cart_summary", "add_to_cart"):
                 if "product_ids" in tool_result:
                     product_ids.extend(tool_result["product_ids"])
@@ -213,7 +193,6 @@ def run_chat(
                 content=json.dumps(msg_content, default=str),
                 tool_call_id=tc["id"],
             ))
-        _log_messages(messages, f"after_iteration_{iteration + 1}")
 
     if not response_text:
         response_text = "I'm having trouble processing your request. Please try again."

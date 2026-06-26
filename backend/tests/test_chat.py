@@ -110,4 +110,4 @@ def test_chat_agent_error(mock_run_chat, client: TestClient, user_token_headers:
         headers=user_token_headers,
     )
     assert resp.status_code == 503
-    assert "AI service unavailable" in resp.json()["detail"]
+    assert "AI service is temporarily unavailable" in resp.json()["detail"]

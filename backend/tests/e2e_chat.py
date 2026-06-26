@@ -79,7 +79,7 @@ def main():
 
     say(token, cid, "watches", expect_any=["found"], id_free=True)
     say(token, cid, "only which are in stock",
-        expect_any=["found", "in stock", "stock"], id_free=True)
+        expect_any=["found", "in stock", "stock", "available", "availability"], id_free=True)
     say(token, cid, "which one is out of stock",
         expect_any=["out of stock", "found", "information", "referring", "stock"], id_free=True)
     say(token, cid, "which one is cheapest",

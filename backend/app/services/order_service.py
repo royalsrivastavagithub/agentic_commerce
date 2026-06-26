@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from enum import Enum
 
@@ -13,6 +14,8 @@ from app.models.user import User
 from app.schemas.order import CreatePaymentResponse
 from app.services.razorpay import create_razorpay_order, verify_payment_signature
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def find_pending(db: Session, razorpay_order_id: str, user_id: int | None = None) -> PendingPayment:
@@ -64,7 +67,8 @@ def create_razorpay_payment(db: Session, user_id: int, address_id: int) -> Creat
             receipt=f"pay_{user_id}_{datetime.now(timezone.utc).timestamp()}",
         )
     except Exception as e:
-        raise BadGatewayError(f"Failed to create Razorpay order: {str(e)}")
+        logger.error("Failed to create Razorpay order: %s", e, exc_info=True)
+        raise BadGatewayError("Failed to create payment order. Please try again.")
 
     pending = PendingPayment(
         user_id=user_id,

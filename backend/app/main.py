@@ -1,3 +1,5 @@
+import logging
+import os
 import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -17,6 +19,8 @@ from app.models.user import User
 from app.core.security import get_password_hash, create_access_token
 from app.services.typesense_service import ensure_collection, reindex_all
 from app.db.session import SessionLocal as _SessionLocal
+
+logger = logging.getLogger(__name__)
 
 
 def _seed_users():
@@ -84,7 +88,7 @@ async def lifespan(app: FastAPI):
                 total = db.query(Product).count()
                 if total > 0:
                     count = reindex_all(db)
-                    print(f"Typesense auto-indexed {count} products")
+                    logger.info("Typesense auto-indexed %d products", count)
             finally:
                 db.close()
     yield
@@ -143,6 +147,7 @@ async def add_security_headers(request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 
@@ -179,7 +184,8 @@ async def root():
 
 
 def main():
-    uvicorn.run("app.main:app", port=8000, reload=True)
+    reload_enabled = os.getenv("UVICORN_RELOAD", "false").lower() == "true"
+    uvicorn.run("app.main:app", port=8000, reload=reload_enabled)
 
 
 if __name__ == "__main__":
