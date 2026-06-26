@@ -1,0 +1,11 @@
+.venv
+__pycache__
+*.pyc
+.git
+.gitignore
+.env
+tests
+sqlite.db
+alembic/versions/__pycache__
+.python-version
+uv.lock
