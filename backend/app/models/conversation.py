@@ -14,6 +14,7 @@ class Conversation(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    state_json = Column(JSON, default=dict)
 
     user = relationship("User", backref="conversations")
     messages = relationship(

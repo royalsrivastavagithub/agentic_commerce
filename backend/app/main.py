@@ -60,9 +60,20 @@ def _seed_users():
         db.close()
 
 
+def _migrate_conversations():
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE conversations ADD COLUMN state_json TEXT DEFAULT '{}'"))
+            conn.commit()
+    except Exception:
+        pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    _migrate_conversations()
     _seed_users()
     if settings.TYPESENSE_ENABLED:
         if ensure_collection():

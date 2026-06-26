@@ -9,6 +9,8 @@ from app.ai.conversation import (
     add_message,
     get_or_create_conversation,
     get_recent_history,
+    load_state,
+    save_state,
 )
 from app.ai.intent import classify_intent, filter_tools
 from app.ai.prompts import SYSTEM_PROMPT
@@ -66,6 +68,36 @@ def _lookup_products(db: Session, ids: list[int]) -> list[dict]:
     return result
 
 
+def _make_state_block(state: ConversationState, db: Session) -> str:
+    parts = []
+    if state.last_query:
+        parts.append(f"Last search: {state.last_query}")
+        if state.last_filters:
+            f = state.last_filters
+            frags = []
+            if f.get("category"): frags.append(f"category={f['category']}")
+            if f.get("in_stock") is True: frags.append("in-stock only")
+            elif f.get("in_stock") is False: frags.append("out-of-stock only")
+            if f.get("min_price") is not None or f.get("max_price") is not None:
+                frags.append(f"price={f.get('min_price','')}-{f.get('max_price','')}")
+            if f.get("min_rating") is not None: frags.append(f"rating>={f['min_rating']}")
+            if fragments := "; ".join(frags):
+                parts.append(f"Filters: {fragments}")
+        if state.last_sort and state.last_sort.get("sort_by"):
+            parts.append(f"Sort: {state.last_sort['sort_by']} ({state.last_sort.get('sort_order', 'asc')})")
+    if state.last_results:
+        unique = list(dict.fromkeys(state.last_results))
+        mappings = []
+        for pid in unique:
+            try:
+                p = _get_product_by_id(db, pid)
+                mappings.append(f"{p.title} (id={pid})")
+            except Exception:
+                mappings.append(f"id={pid}")
+        parts.append("Products in context: " + "; ".join(mappings))
+    return "\n".join(parts) if parts else "No previous search context."
+
+
 def run_chat(
     db: Session,
     user: User,
@@ -73,9 +105,9 @@ def run_chat(
     current_message: str,
 ) -> tuple[str, list[dict], int]:
     model = get_model()
-    state = ConversationState()
 
     conversation = get_or_create_conversation(db, user.id, conversation_id)
+    state = load_state(db, conversation.id)
     history = get_recent_history(db, conversation.id)
     tools = make_context_tools(db, user)
 
@@ -86,24 +118,8 @@ def run_chat(
     intent_context = f"\nUser intent: {intent}. Choose tools as needed to fulfill the request."
     messages = [SystemMessage(content=SYSTEM_PROMPT + intent_context)]
 
-    prev_ids: list[int] = []
-    for h in history:
-        if h["role"] == "assistant" and h.get("product_ids"):
-            prev_ids.extend(h["product_ids"])
-
-    if prev_ids:
-        unique = list(dict.fromkeys(prev_ids))
-        mappings = []
-        for pid in unique:
-            try:
-                p = _get_product_by_id(db, pid)
-                mappings.append(f"{p.title} (id={pid})")
-            except Exception:
-                mappings.append(f"id={pid}")
-        context = "Products in context: " + "; ".join(mappings)
-        messages.append(SystemMessage(content=context))
-    else:
-        messages.append(SystemMessage(content="No previous search context."))
+    state_block = _make_state_block(state, db)
+    messages.append(SystemMessage(content=state_block))
 
     for h in history:
         if h["role"] == "user":
@@ -160,18 +176,36 @@ def run_chat(
                         "cart_unit_price": item["unit_price"],
                     }
 
+            if tc["name"] == "search_products":
+                args = tc["args"]
+                state.last_query = args.get("query", state.last_query)
+                filters = {}
+                if args.get("category"): filters["category"] = args["category"]
+                if args.get("in_stock") is not None: filters["in_stock"] = args["in_stock"]
+                if args.get("min_price") is not None: filters["min_price"] = args["min_price"]
+                if args.get("max_price") is not None: filters["max_price"] = args["max_price"]
+                if args.get("min_rating") is not None: filters["min_rating"] = args["min_rating"]
+                state.last_filters = filters or None
+                sort = {}
+                if args.get("sort_by"): sort["sort_by"] = args["sort_by"]
+                if args.get("sort_order"): sort["sort_order"] = args["sort_order"]
+                state.last_sort = sort or None
+                if "product_ids" in tool_result:
+                    state.last_results = tool_result["product_ids"]
+
             print(f"Tool '{tc['name']}' result: {json.dumps(tool_result, default=str)[:300]}")
 
-            if "product_ids" in tool_result:
-                product_ids.extend(tool_result["product_ids"])
-            if "product_id" in tool_result:
-                pid = tool_result["product_id"]
-                if pid and pid not in product_ids:
-                    product_ids.append(pid)
+            if tc["name"] in ("search_products", "get_cart_summary", "add_to_cart"):
+                if "product_ids" in tool_result:
+                    product_ids.extend(tool_result["product_ids"])
+                if "product_id" in tool_result:
+                    pid = tool_result["product_id"]
+                    if pid and pid not in product_ids:
+                        product_ids.append(pid)
 
             strip_keys = {"items"}
             if tc["name"] == "get_cart_summary":
-                strip_keys |= {"product_ids", "total"}
+                strip_keys |= {"product_ids"}
             msg_content = {k: v for k, v in tool_result.items() if k not in strip_keys}
             if "message" in msg_content:
                 last_tool_message = msg_content["message"]
@@ -186,6 +220,7 @@ def run_chat(
 
     add_message(db, conversation.id, "user", current_message)
     add_message(db, conversation.id, "assistant", response_text, product_ids=product_ids)
+    save_state(db, conversation.id, state)
 
     products = _lookup_products(db, product_ids)
     if cart_items_map:

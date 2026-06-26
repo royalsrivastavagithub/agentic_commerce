@@ -18,12 +18,19 @@ INTENT_MAP: list[tuple[set[str], str]] = [
     ({"search", "find", "show", "look for", "browse", "watches", "laptop", "phone", "shoe"}, "search"),
 ]
 
+INTENT_TOOLS: dict[str, set[str]] = {
+    "search": {"search_products", "get_product_details", "list_categories"},
+    "cart": {"add_to_cart", "get_cart_summary", "update_cart_item", "remove_cart_item", "clear_cart", "search_products", "get_product_details"},
+    "info": {"get_product_details", "list_categories", "search_products"},
+    "category": {"list_categories"},
+}
+
 
 def classify_intent(message: str) -> str:
     """Determine user intent from message text using keyword matching."""
     lower = message.lower()
 
-    if any(word in lower for word in {"add", "cart", "put in", "remove", "update", "clear my cart", "empty cart"}):
+    if any(word in lower for word in {"add", "cart", "put in", "remove", "update", "clear my cart", "empty cart", "my cart", "shopping cart", "bag", "basket"}):
         return "cart"
 
     for keywords, intent in INTENT_MAP:
@@ -35,5 +42,8 @@ def classify_intent(message: str) -> str:
 
 
 def filter_tools(tools: list, intent: str) -> list:
-    """Return all tools — the model decides which to call."""
-    return tools
+    """Return only tools relevant to the detected intent."""
+    allowed = INTENT_TOOLS.get(intent)
+    if allowed is None:
+        return tools
+    return [t for t in tools if t.name in allowed]
