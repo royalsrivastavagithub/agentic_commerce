@@ -11,6 +11,9 @@ from app.core.security import get_password_hash, create_access_token
 
 # Disable Typesense in tests
 settings.TYPESENSE_ENABLED = False
+# Disable auto-seeding in tests (avoids polluting real DB)
+from app.main import AUTO_SEED_ENABLED
+AUTO_SEED_ENABLED = False
 # Ensure SECRET_KEY is set for test token generation
 settings.SECRET_KEY = "test-secret-key-for-testing-min-32-chars!"
 from app.models.user import User

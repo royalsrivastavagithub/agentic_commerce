@@ -20,6 +20,7 @@ from app.core.security import get_password_hash, create_access_token
 from app.services.typesense_service import ensure_collection, reindex_all
 from app.db.session import SessionLocal as _SessionLocal
 
+AUTO_SEED_ENABLED = True
 logger = logging.getLogger(__name__)
 
 
@@ -74,11 +75,249 @@ def _migrate_conversations():
         pass
 
 
+REVIEW_COMMENTS = [
+    "Great product, very satisfied!",
+    "Good quality for the price.",
+    "Works as expected, happy with purchase.",
+    "Decent product, could be better.",
+    "Average quality, nothing special.",
+    "Not bad, but there are better options.",
+    "Excellent quality, highly recommend!",
+    "Love this! Will buy again.",
+    "Pretty good overall.",
+    "Does the job, no complaints.",
+    "Amazing product, exceeded expectations!",
+    "Okay for the price point.",
+    "Solid build quality, recommended.",
+    "Fantastic! Best purchase this year.",
+    "Exactly what I needed.",
+    "Good value for money.",
+    "Pleased with this purchase.",
+    "Would recommend to a friend.",
+]
+
+
+CAMEL_TO_SNAKE = {
+    "discountPercentage": "discount_percentage",
+    "warrantyInformation": "warranty_information",
+    "shippingInformation": "shipping_information",
+    "availabilityStatus": "availability_status",
+    "returnPolicy": "return_policy",
+    "minimumOrderQuantity": "minimum_order_quantity",
+}
+PRODUCT_SIMPLE_FIELDS = {
+    "id", "title", "description", "price", "rating",
+    "stock", "tags", "brand", "sku", "weight",
+    "dimensions", "meta", "images", "thumbnail",
+}
+
+
+def _seed_catalog():
+    from app.models.product import Product
+    from app.models.category import Category
+
+    db = Session(bind=engine)
+    try:
+        if db.query(Product).count() > 0:
+            logger.info("Products already seeded, skipping catalog seed")
+            return
+
+        import json
+        import random
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        data_dir = Path(__file__).resolve().parent.parent / "data"
+        with open(data_dir / "new_products.json") as f:
+            source = json.load(f)["products"]
+
+        logger.info("Seeding %d products...", len(source))
+
+        # ── Categories ─────────────────────────────────────────────
+        cat_names = sorted({p["category"] for p in source})
+        cat_mapping = {}
+        for name in cat_names:
+            cat = db.query(Category).filter(Category.name == name).first()
+            if not cat:
+                cat = Category(name=name)
+                db.add(cat)
+                db.flush()
+            cat_mapping[name] = cat.id
+        logger.info("Created %d categories", len(cat_mapping))
+
+        # ── Products ───────────────────────────────────────────────
+        FEATURED_COUNT = 10
+        created = 0
+        for i, p in enumerate(source):
+            cat_id = cat_mapping.get(p.get("category"))
+            if cat_id is None:
+                continue
+            prod_data = {}
+            for k, v in p.items():
+                if k in ("category",):
+                    continue
+                if k in PRODUCT_SIMPLE_FIELDS:
+                    prod_data[k] = v
+                elif k in CAMEL_TO_SNAKE:
+                    prod_data[CAMEL_TO_SNAKE[k]] = v
+            prod_data["category_id"] = cat_id
+            prod_data["is_featured"] = i < FEATURED_COUNT
+            db.add(Product(**prod_data))
+            created += 1
+        db.commit()
+        logger.info("Created %d products", created)
+
+        # ── Create test users ───────────────────────────────────────
+        from datetime import date
+        TEST_USERS = [
+            {"email": "alice@test.com",   "first_name": "Alice",   "last_name": "Johnson",  "phone": "9876543210", "gender": "female"},
+            {"email": "bob@test.com",     "first_name": "Bob",     "last_name": "Smith",    "phone": "9876543211", "gender": "male"},
+            {"email": "charlie@test.com", "first_name": "Charlie", "last_name": "Brown",    "phone": "9876543212", "gender": "male"},
+            {"email": "diana@test.com",   "first_name": "Diana",   "last_name": "Prince",   "phone": "9876543213", "gender": "female"},
+            {"email": "eve@test.com",     "first_name": "Eve",     "last_name": "Davis",    "phone": "9876543214", "gender": "female"},
+        ]
+        for info in TEST_USERS:
+            existing = db.query(User).filter(User.email == info["email"]).first()
+            if not existing:
+                db.add(User(
+                    email=info["email"],
+                    hashed_password=get_password_hash("test123"),
+                    first_name=info["first_name"],
+                    last_name=info["last_name"],
+                    phone=info["phone"],
+                    gender=info["gender"],
+                    date_of_birth=date(1990, 1, 1),
+                    is_active=True,
+                    is_verified=True,
+                    role="user",
+                ))
+        db.commit()
+
+        # ── Orders & Reviews ───────────────────────────────────────
+        from app.models.address import Address
+        from app.models.order import Order, OrderItem, OrderStatus
+        from app.models.review import Review
+
+        test_users = db.query(User).filter(User.role == "user").all()
+        rng = random.Random(42)
+
+        for user in test_users:
+            addr = Address(
+                user_id=user.id,
+                label="Home",
+                street=f"{rng.randint(1, 999)} Test Street",
+                city=rng.choice(["Mumbai", "Delhi", "Bangalore", "Chennai", "Pune"]),
+                state=rng.choice(["Maharashtra", "Delhi", "Karnataka", "Tamil Nadu"]),
+                pincode=str(rng.randint(100000, 999999)),
+                country="India",
+                is_default=True,
+                address_type="both",
+            )
+            db.add(addr)
+
+        db.commit()
+
+        shuffled = rng.sample(source, len(source))
+        order_count = 0
+        review_count = 0
+        idx = 0
+
+        for user in test_users:
+            for _ in range(5):
+                num_items = rng.randint(3, 6)
+                items_in_order = shuffled[idx : idx + num_items]
+                idx += num_items
+                if not items_in_order or idx > len(shuffled):
+                    break
+
+                order_items_data = []
+                subtotal = 0
+                for prod in items_in_order:
+                    qty = rng.randint(1, 2)
+                    line_total = round(prod["price"] * qty, 2)
+                    subtotal += line_total
+                    order_items_data.append((prod, qty, line_total))
+
+                subtotal = round(subtotal, 2)
+                order = Order(
+                    user_id=user.id,
+                    total=subtotal,
+                    subtotal=subtotal,
+                    status=OrderStatus.DELIVERED,
+                    shipping_name=f"{user.first_name} Test",
+                    shipping_phone=f"99999{rng.randint(10000, 99999)}",
+                    shipping_address_line_1=f"{rng.randint(1, 999)} Test Street",
+                    shipping_city=rng.choice(["Mumbai", "Delhi", "Bangalore", "Chennai", "Pune"]),
+                    shipping_state=rng.choice(["Maharashtra", "Delhi", "Karnataka", "Tamil Nadu"]),
+                    shipping_country="India",
+                    shipping_pincode=str(rng.randint(100000, 999999)),
+                    created_at=datetime.now(timezone.utc),
+                )
+                db.add(order)
+                db.flush()
+
+                for prod, qty, line_total in order_items_data:
+                    db.add(OrderItem(
+                        order_id=order.id,
+                        product_id=prod["id"],
+                        product_name=prod["title"],
+                        product_price=prod["price"],
+                        quantity=qty,
+                        subtotal=line_total,
+                        thumbnail=prod.get("thumbnail", ""),
+                    ))
+
+                    existing_review = (
+                        db.query(Review)
+                        .filter(Review.user_id == user.id, Review.product_id == prod["id"])
+                        .first()
+                    )
+                    if not existing_review:
+                        rating = rng.choices([1, 2, 3, 4, 5], weights=[1, 2, 4, 5, 3])[0]
+                        comment = rng.choice(REVIEW_COMMENTS)
+                        db.add(Review(
+                            user_id=user.id,
+                            product_id=prod["id"],
+                            rating=rating,
+                            comment=comment,
+                            created_at=datetime.now(timezone.utc),
+                        ))
+                        review_count += 1
+
+                order_count += 1
+
+        db.commit()
+        logger.info("Seeded %d orders and %d reviews", order_count, review_count)
+
+        # ── Recalculate Ratings ────────────────────────────────────
+        from sqlalchemy import func
+        updated = 0
+        for product in db.query(Product).all():
+            stats = (
+                db.query(func.avg(Review.rating), func.count(Review.id))
+                .filter(Review.product_id == product.id)
+                .first()
+            )
+            avg_rating = round(float(stats[0] or 0), 2)
+            rev_count = stats[1] or 0
+            if product.rating != avg_rating or product.review_count != rev_count:
+                product.rating = avg_rating
+                product.review_count = rev_count
+                updated += 1
+        db.commit()
+        logger.info("Recalculated ratings for %d products", updated)
+
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     _migrate_conversations()
     _seed_users()
+    if AUTO_SEED_ENABLED:
+        _seed_catalog()
     if settings.TYPESENSE_ENABLED:
         if ensure_collection():
             from app.db.session import SessionLocal

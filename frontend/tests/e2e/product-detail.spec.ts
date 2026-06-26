@@ -14,7 +14,7 @@ test.describe("Product detail", () => {
   })
 
   test("write review form is accessible", async ({ page }) => {
-    await page.goto("/products/50")
+    await page.goto("/products/150")
     const writeBtn = page.getByRole("button", { name: "Write a Review" })
     await expect(writeBtn).toBeVisible({ timeout: 10000 })
     await writeBtn.click()
