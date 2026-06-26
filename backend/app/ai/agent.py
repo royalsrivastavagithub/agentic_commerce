@@ -87,27 +87,21 @@ def run_chat(
     messages = [SystemMessage(content=SYSTEM_PROMPT + intent_context)]
 
     prev_ids: list[int] = []
-    last_assistant_ids = []
     for h in history:
         if h["role"] == "assistant" and h.get("product_ids"):
             prev_ids.extend(h["product_ids"])
-            last_assistant_ids = h["product_ids"]
 
     if prev_ids:
         unique = list(dict.fromkeys(prev_ids))
-        recent = list(dict.fromkeys(last_assistant_ids)) or unique[-5:]
         mappings = []
-        for pid in recent:
+        for pid in unique:
             try:
                 p = _get_product_by_id(db, pid)
                 mappings.append(f"{p.title} (id={pid})")
             except Exception:
                 mappings.append(f"id={pid}")
-        if mappings:
-            context = "Products in context: " + "; ".join(mappings)
-            messages.append(SystemMessage(content=context))
-        else:
-            messages.append(SystemMessage(content="No previous search context."))
+        context = "Products in context: " + "; ".join(mappings)
+        messages.append(SystemMessage(content=context))
     else:
         messages.append(SystemMessage(content="No previous search context."))
 

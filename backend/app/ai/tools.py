@@ -354,17 +354,19 @@ def make_context_tools(db: Session, user: User) -> list:
     # ── Cart operations ─────────────────────────────────────
 
     @tool
-    def add_to_cart(product_id: int, quantity: int = 1) -> dict:
-        """Add a product to your shopping cart by product ID and quantity.
+    def add_to_cart(product_name: str, quantity: int = 1) -> dict:
+        """Add a product to your shopping cart by product name.
 
         Args:
-            product_id: The ID of the product to add.
+            product_name: The exact product name to add (search first if unsure).
             quantity: How many units to add (default 1).
         """
+        p = db.query(Product).filter(Product.title.ilike(product_name)).first()
+        if not p:
+            return {"success": False, "message": f"Could not find a product named '{product_name}'."}
         try:
-            p = _get_product_by_id(db, product_id)
-            _add_cart_item(db, user.id, product_id, quantity)
-            return {"success": True, "message": f"Added {quantity} × {p.title} to your cart.", "product_id": product_id}
+            _add_cart_item(db, user.id, p.id, quantity)
+            return {"success": True, "message": f"Added {quantity} × {p.title} to your cart.", "product_id": p.id}
         except (BadRequestError, NotFoundError) as e:
             return {"success": False, "message": str(e)}
 
@@ -401,19 +403,22 @@ def make_context_tools(db: Session, user: User) -> list:
         }
 
     @tool
-    def update_cart_item(product_id: int, quantity: int) -> dict:
-        """Update the quantity of a product in your cart by product ID.
+    def update_cart_item(product_name: str, quantity: int) -> dict:
+        """Update the quantity of a product in your cart by product name.
 
         Args:
-            product_id: The product whose cart quantity to change.
+            product_name: The product name whose cart quantity to change.
             quantity: New quantity (must be > 0). Set to 0 to remove.
         """
+        p = db.query(Product).filter(Product.title.ilike(product_name)).first()
+        if not p:
+            return {"success": False, "message": f"Could not find a product named '{product_name}'."}
         cart = db.query(Cart).filter(Cart.user_id == user.id).first()
         if not cart:
             return {"success": False, "message": "Cart is empty."}
         citem = (
             db.query(CartItem)
-            .filter(CartItem.cart_id == cart.id, CartItem.product_id == product_id)
+            .filter(CartItem.cart_id == cart.id, CartItem.product_id == p.id)
             .first()
         )
         if not citem:
@@ -421,32 +426,35 @@ def make_context_tools(db: Session, user: User) -> list:
         try:
             if quantity <= 0:
                 _remove_cart_item(db, user.id, citem.id)
-                return {"success": True, "message": f"Removed product from cart.", "product_id": product_id}
+                return {"success": True, "message": f"Removed product from cart.", "product_name": product_name}
             _update_cart_item(db, user.id, citem.id, quantity)
-            return {"success": True, "message": f"Updated quantity to {quantity}.", "product_id": product_id}
+            return {"success": True, "message": f"Updated quantity to {quantity}.", "product_name": product_name}
         except (BadRequestError, NotFoundError) as e:
             return {"success": False, "message": str(e)}
 
     @tool
-    def remove_cart_item(product_id: int) -> dict:
-        """Remove a product from your shopping cart by product ID.
+    def remove_cart_item(product_name: str) -> dict:
+        """Remove a product from your shopping cart by product name.
 
         Args:
-            product_id: The product to remove from cart.
+            product_name: The product name to remove from cart.
         """
+        p = db.query(Product).filter(Product.title.ilike(product_name)).first()
+        if not p:
+            return {"success": False, "message": f"Could not find a product named '{product_name}'."}
         cart = db.query(Cart).filter(Cart.user_id == user.id).first()
         if not cart:
             return {"success": False, "message": "Cart is empty."}
         citem = (
             db.query(CartItem)
-            .filter(CartItem.cart_id == cart.id, CartItem.product_id == product_id)
+            .filter(CartItem.cart_id == cart.id, CartItem.product_id == p.id)
             .first()
         )
         if not citem:
             return {"success": False, "message": "Product not found in your cart."}
         try:
             _remove_cart_item(db, user.id, citem.id)
-            return {"success": True, "message": f"Removed from cart.", "product_id": product_id}
+            return {"success": True, "message": f"Removed from cart.", "product_name": product_name}
         except (BadRequestError, NotFoundError) as e:
             return {"success": False, "message": str(e)}
 

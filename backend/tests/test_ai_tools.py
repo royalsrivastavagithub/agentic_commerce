@@ -228,20 +228,20 @@ class TestListCategories:
 class TestAddToCart:
     def test_add_product(self, tools, product):
         fn = _by_name(tools, "add_to_cart")
-        result = fn.invoke({"product_id": product.id})
+        result = fn.invoke({"product_name": product.title})
         assert isinstance(result, dict)
         assert result["success"] is True
         assert result["product_id"] == product.id
 
     def test_add_multiple(self, tools, product):
         fn = _by_name(tools, "add_to_cart")
-        result = fn.invoke({"product_id": product.id, "quantity": 3})
+        result = fn.invoke({"product_name": product.title, "quantity": 3})
         assert isinstance(result, dict)
         assert result["success"] is True
 
     def test_nonexistent_product(self, tools):
         fn = _by_name(tools, "add_to_cart")
-        result = fn.invoke({"product_id": 99999})
+        result = fn.invoke({"product_name": "Nonexistent Product"})
         assert isinstance(result, dict)
         assert result["success"] is False
 
@@ -287,7 +287,7 @@ class TestUpdateCartItem:
         db.add(ci)
         db.commit()
 
-        result = fn.invoke({"product_id": product.id, "quantity": 5})
+        result = fn.invoke({"product_name": product.title, "quantity": 5})
         assert result["success"] is True
 
     def test_remove_by_zero(self, tools, user, product, db):
@@ -300,7 +300,7 @@ class TestUpdateCartItem:
         db.add(ci)
         db.commit()
 
-        result = fn.invoke({"product_id": product.id, "quantity": 0})
+        result = fn.invoke({"product_name": product.title, "quantity": 0})
         assert result["success"] is True
 
 
@@ -315,12 +315,12 @@ class TestRemoveCartItem:
         db.add(ci)
         db.commit()
 
-        result = fn.invoke({"product_id": product.id})
+        result = fn.invoke({"product_name": product.title})
         assert result["success"] is True
 
     def test_not_in_cart(self, tools, user, db):
         fn = _by_name(tools, "remove_cart_item")
-        result = fn.invoke({"product_id": 99999})
+        result = fn.invoke({"product_name": "Nonexistent Product"})
         assert result["success"] is False
 
 
