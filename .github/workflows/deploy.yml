@@ -30,3 +30,10 @@ jobs:
       - name: Restart backend
         run: |
           sudo systemctl restart agentic-commerce
+
+      - name: Wait for backend
+        run: sleep 5
+
+      - name: Verify deployment
+        run: |
+          curl --fail http://127.0.0.1:8000/health
