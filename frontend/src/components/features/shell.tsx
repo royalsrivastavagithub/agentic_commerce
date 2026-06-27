@@ -200,14 +200,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <nav className="ml-auto flex items-center gap-1 sm:gap-3">
             {/* Mobile hamburger */}
             <Sheet>
-              <SheetTrigger asChild>
-                <button
-                  type="button"
-                  className="flex items-center px-2 py-1.5 text-white hover:opacity-80 sm:hidden"
-                  aria-label="Menu"
-                >
-                  <Menu className="h-5 w-5" />
-                </button>
+              <SheetTrigger className="flex items-center px-2 py-1.5 text-white hover:opacity-80 sm:hidden" aria-label="Menu">
+                <Menu className="h-5 w-5" />
               </SheetTrigger>
               <SheetContent side="left" className="w-64 pt-12">
                 <div className="space-y-1">
@@ -217,44 +211,32 @@ export function Shell({ children }: { children: React.ReactNode }) {
                         <p className="text-sm font-medium">Hello, {user?.first_name || user?.email}</p>
                         <p className="text-xs text-muted-foreground">{user?.email}</p>
                       </div>
-                      <SheetClose asChild>
-                        <button onClick={() => router.push("/profile")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
-                          <UserIcon className="h-4 w-4" />
-                          Your Profile
-                        </button>
+                      <SheetClose onClick={() => router.push("/profile")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                        <UserIcon className="h-4 w-4" />
+                        Your Profile
                       </SheetClose>
-                      <SheetClose asChild>
-                        <button onClick={() => router.push("/orders")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
-                          <Package className="h-4 w-4" />
-                          Your Orders
-                        </button>
+                      <SheetClose onClick={() => router.push("/orders")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                        <Package className="h-4 w-4" />
+                        Your Orders
                       </SheetClose>
-                      <SheetClose asChild>
-                        <button onClick={() => router.push("/wishlist")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
-                          <Heart className="h-4 w-4" />
-                          Your Wishlist
-                        </button>
+                      <SheetClose onClick={() => router.push("/wishlist")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                        <Heart className="h-4 w-4" />
+                        Your Wishlist
                       </SheetClose>
-                      <SheetClose asChild>
-                        <button onClick={() => router.push("/agent")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
-                          <Bot className="h-4 w-4" />
-                          AI Assistant
-                        </button>
+                      <SheetClose onClick={() => router.push("/agent")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                        <Bot className="h-4 w-4" />
+                        AI Assistant
                       </SheetClose>
                       {user?.role === "admin" && (
-                        <SheetClose asChild>
-                          <button onClick={() => router.push("/admin")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
-                            <Menu className="h-4 w-4" />
-                            Admin Dashboard
-                          </button>
+                        <SheetClose onClick={() => router.push("/admin")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                          <Menu className="h-4 w-4" />
+                          Admin Dashboard
                         </SheetClose>
                       )}
                       <div className="border-t mt-3 pt-3">
-                        <SheetClose asChild>
-                          <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-destructive hover:bg-muted">
-                            <LogOut className="h-4 w-4" />
-                            Sign Out
-                          </button>
+                        <SheetClose onClick={handleLogout} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-destructive hover:bg-muted">
+                          <LogOut className="h-4 w-4" />
+                          Sign Out
                         </SheetClose>
                       </div>
                     </>
