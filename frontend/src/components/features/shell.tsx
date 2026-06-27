@@ -243,15 +243,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   ) : (
                     <>
                       <div className="px-3 py-2 text-sm font-medium">Welcome</div>
-                      <SheetClose asChild>
-                        <Link href="/auth/login" className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
-                          Sign In
-                        </Link>
+                      <SheetClose onClick={() => router.push("/auth/login")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                        Sign In
                       </SheetClose>
-                      <SheetClose asChild>
-                        <Link href="/auth/signup" className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
-                          Create Account
-                        </Link>
+                      <SheetClose onClick={() => router.push("/auth/signup")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted">
+                        Create Account
                       </SheetClose>
                     </>
                   )}
